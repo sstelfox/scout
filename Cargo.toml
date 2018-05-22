@@ -1,0 +1,7 @@
+[package]
+name = "scout"
+version = "0.1.0"
+authors = ["Sam Stelfox <sstelfox@bedroomprogrammers.net>"]
+
+[dependencies]
+dotenv = "^0.12"
