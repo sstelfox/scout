@@ -1,3 +1,4 @@
+extern crate actix;
 extern crate actix_web;
 extern crate dotenv;
 extern crate env_logger;
@@ -5,10 +6,10 @@ extern crate env_logger;
 #[macro_use]
 extern crate log;
 
-use actix_web::{server, App, HttpRequest};
+use actix_web::{App, HttpRequest, middleware, server};
 use dotenv::dotenv;
 
-fn index(req: HttpRequest) -> &'static str {
+fn index(_req: HttpRequest) -> &'static str {
     "TODO: Serve file"
 }
 
@@ -16,12 +17,17 @@ fn main() {
     dotenv().ok();
     env_logger::init();
 
-    info!("Binding to: 127.0.0.1:9292");
+    let sys = actix::System::new("scout");
 
-    server::new(
-        || App::new()
-            .resource("/", |r| r.f(index)))
-        .bind("127.0.0.1:9292")
+    server::new(move ||
+        App::new()
+            .middleware(middleware::Logger::default())
+            .resource("/", |r| r.f(index))
+    ).bind("127.0.0.1:9292")
         .expect("Unable to bind to 127.0.0.1:9292")
-        .run();
+        .start();
+
+    info!("Started HTTP server: 127.0.0.1:9292");
+
+    let _ = sys.run();
 }
