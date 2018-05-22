@@ -5,3 +5,5 @@ authors = ["Sam Stelfox <sstelfox@bedroomprogrammers.net>"]
 
 [dependencies]
 dotenv = "^0.12"
+env_logger = "^0.5"
+log = "^0.4"
