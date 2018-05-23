@@ -101,6 +101,18 @@ const detectRuntimeConfig = () => {
   runtimeInfo.cookiesSupported = testCookieSupport();
 }
 
+const errorHandler = (error) => {
+  // TODO: Send errors
+  console.error(error);
+}
+
+/**
+ * Generate an anonymous function that filters all the cookies for one with a
+ * specific matching name.
+ *
+ * @param string name
+ * @return function
+ */
 const generateCookieFilter = (name) => {
   const regex = new RegExp('^' + cookieName(name) + '=(.+)$');
   return (item) => { return item.trim().match(regex) };
@@ -164,28 +176,64 @@ const setCookie = (name, value, secondsToExpiration) => {
     ';path=/' + (runtimeInfo.useSecureCookie ? ';secure' : '');
 }
 
+/**
+ * Load a browser identity if one is already set, otherwise, generate a new
+ * one. In the event DNT is enabled this will be the special 'dnt' identifier.
+ */
 const setupBrowserIdentity = () => {
+  // DNT enabled clients will return null here
   let bidCookieContents = getCookie(config.cookieBrowserIDName);
 
   if (bidCookieContents === null) {
-    runtimeInfo.browserID = randomId();
+    runtimeInfo.browserID = (runtimeInfo.dntDetected ? 'dnt' : randomId());
   } else {
-    // TODO: I should have an error handler here
-    let parsedCookie = JSON.parse(bidCookieContents);
+    let parsedCookie = null;
+
+    try {
+      parsedCookie = JSON.parse(bidCookieContents);
+    } catch(error) {
+      // If the contents are invalid, report the error, clear out the bad
+      // cookie and all this function again.
+      errorHandler(error);
+
+      deleteCookie(cookieBrowserIDName);
+      setupBrowserIdentity();
+
+      return;
+    }
+
     runtimeInfo.browserID = parsedCookie.bid;
   }
 
   setCookie(config.cookieBrowserIDName, JSON.stringify({ bid: runtimeInfo.browserID }), config.cookieBrowserExpiration);
 }
 
+/**
+ * Load a session identity if one is already set, otherwise, generate a new
+ * one. In the event DNT is enabled this will be the special 'dnt' identifier.
+ */
 const setupSessionIdentity = () => {
+  // DNT enabled clients will return null here
   let sidCookieContents = getCookie(config.cookieSessionIDName);
 
   if (sidCookieContents === null) {
-    runtimeInfo.sessionID = randomId();
+    runtimeInfo.sessionID = (runtimeInfo.dntDetected ? 'dnt' : randomId());
   } else {
-    // TODO: I should have an error handler here
-    let parsedCookie = JSON.parse(sidCookieContents);
+    let parsedCookie = null;
+
+    try {
+      parsedCookie = JSON.parse(sidCookieContents);
+    } catch(error) {
+      // If the contents are invalid, report the error, clear out the bad
+      // cookie and all this function again.
+      errorHandler(error);
+
+      deleteCookie(cookieSessionIDName);
+      setupSessionIdentity();
+
+      return;
+    }
+
     runtimeInfo.sessionID = parsedCookie.sid;
   }
 
@@ -259,6 +307,10 @@ const valueEncoder = (value) => {
   return btoa(safeString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-detectRuntimeConfig();
-setupBrowserIdentity();
-setupSessionIdentity();
+try {
+  detectRuntimeConfig();
+  setupBrowserIdentity();
+  setupSessionIdentity();
+} catch(error) {
+  errorHandler(error);
+}
