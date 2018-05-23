@@ -47,8 +47,12 @@
  */
 
 const config = {
+  cookieBrowserIDName: 'bid',
+  cookieBrowserExpiration: (60 * 60 * 24 * 10),
   cookiePrefix: '_scout_',
-  cookieTestName: 'test',
+  cookieSessionIDName: 'sid',
+  cookieSessionExpiration: (60 * 60 * 2),
+  cookieTestName: 'chk',
 }
 
 // Collected information that determines runtime behavior including identities
@@ -56,6 +60,9 @@ let runtimeInfo = {
   cookiesSupported: null,
   dntDetected: null,
   useSecureCookie: null,
+
+  browserID: null,
+  sessionID: null,
 }
 
 /**
@@ -157,6 +164,34 @@ const setCookie = (name, value, secondsToExpiration) => {
     ';path=/' + (runtimeInfo.useSecureCookie ? ';secure' : '');
 }
 
+const setupBrowserIdentity = () => {
+  let bidCookieContents = getCookie(config.cookieBrowserIDName);
+
+  if (bidCookieContents === null) {
+    runtimeInfo.browserID = randomId();
+  } else {
+    // TODO: I should have an error handler here
+    let parsedCookie = JSON.parse(bidCookieContents);
+    runtimeInfo.browserID = parsedCookie.bid;
+  }
+
+  setCookie(config.cookieBrowserIDName, JSON.stringify({ bid: runtimeInfo.browserID }), config.cookieBrowserExpiration);
+}
+
+const setupSessionIdentity = () => {
+  let sidCookieContents = getCookie(config.cookieSessionIDName);
+
+  if (sidCookieContents === null) {
+    runtimeInfo.sessionID = randomId();
+  } else {
+    // TODO: I should have an error handler here
+    let parsedCookie = JSON.parse(sidCookieContents);
+    runtimeInfo.sessionID = parsedCookie.sid;
+  }
+
+  setCookie(config.cookieSessionIDName, JSON.stringify({ bid: runtimeInfo.sessionID }), config.cookieSessionExpiration);
+}
+
 /**
  *  Check whether or not we can use cookies during this browser run. The answer
  *  will be no if DNT is detected even if the browser supports it.
@@ -225,3 +260,5 @@ const valueEncoder = (value) => {
 }
 
 detectRuntimeConfig();
+setupBrowserIdentity();
+setupSessionIdentity();
