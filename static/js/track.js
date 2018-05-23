@@ -113,7 +113,7 @@ const getCookie = (name) => {
 
   // Can there be more than one result? Some quick Googling says it might be a
   // problem... hmmm.
-  return matchingCookies[0].split('=')[1].trim();
+  return valueDecoder(matchingCookies[0].split('=')[1].trim());
 }
 
 /**
@@ -147,7 +147,7 @@ const setCookie = (name, value, secondsToExpiration) => {
   }
 
   // TODO: I don't know if I want to be able to configure path or domain
-  document.cookie = cookieName(name) + '=' + value +
+  document.cookie = cookieName(name) + '=' + valueEncoder(value) +
     (expirationTime ? ';expires=' + expirationTime.toUTCString() : '') +
     ';path=/' + (runtimeInfo.useSecureCookie ? ';secure' : '');
 }
@@ -176,7 +176,50 @@ const testCookieSupport = () => {
   return cookieSupport;
 }
 
+/**
+ * This reverses the valueEncoder() encoding, translating back into regular
+ * base64, decoding it, then decoding back to the unsafe version.
+ *
+ * @param string value
+ * @return string
+ */
+const valueDecoder = (value) => {
+  // We're starting at websafe base64, we need to turn that to normal base64,
+  // then decode it.
+  let base64 = value.replace(/\-/g, '+').replace(/_/g, '/') + '=='.substring(0, (3 * value.length) % 4);
+
+  // We need to return our specially encoded values to something decodable, we
+  // can brute force this a bit by just re-encoding all the values into hex
+  // before decoding them.
+  let hexEncoded = atob(base64).split('').map((c) => { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('');
+
+  return decodeURIComponent(hexEncoded);
+}
+
+/**
+ * To save UTF-8 characters we need to safely get them into individual byte
+ * values. There are still plenty of unsafe characters, which we can handle by
+ * base64 encoding, and finally replacing the unsafe characters with the
+ * websafe equivalents.
+ *
+ * The resulting string should be safe for cookies and as URL parameters.
+ *
+ * @param string value
+ * @return string
+ */
+const valueEncoder = (value) => {
+  // Safely perform encoding of multibyte values into a byte string
+  let safeString = encodeURIComponent(value)
+                    .replace(
+                      /%([0-9A-F]{2})/g,
+                      (_, matchedByte) => { return String.fromCharCode('0x' + matchedByte) }
+                    );
+
+  // Convert the byte string to base64, and then in turn to websafe base64
+  return btoa(safeString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 detectRuntimeConfig();
 
-setCookie('test', randomId(), 300);
-console.log(getCookie('test'));
+setCookie('utf8_test', 'ಬಾ ಇಲ್ಲಿ ಸಂಭವಿಸು ಇಂದೆನ್ನ ಹೃದಯದಲಿ', 30);
+console.log(getCookie('utf8_test'));
