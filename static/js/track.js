@@ -143,9 +143,22 @@ const getCookie = (name) => {
   // No cookie was found
   if (matchingCookies.length === 0) { return null; }
 
-  // Can there be more than one result? Some quick Googling says it might be a
-  // problem... hmmm.
+  // We already know we have at least one value, as far as I know browsers will
+  // not make more than one cookie available under the same name at once. If
+  // this assumption is ever the case I want to know about it.
+  if (values.length > 1) { reportEdgeCase('Duplicate cookie names do need to be handled...'); }
+
   return valueDecoder(matchingCookies[0].split('=')[1].trim());
+}
+
+/**
+ *  If we hit something I think might be an edge case, we can create an
+ *  artificial error and report it through the normal system.
+ *
+ *  @param string caseName
+ */
+const reportEdgeCase = (caseName) => {
+  errorHandler(new Error('Edge Case: ' + caseName));
 }
 
 /**
