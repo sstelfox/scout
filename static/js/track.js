@@ -54,7 +54,10 @@ let runtimeInfo = {
 }
 
 const detectRuntimeConfig = () => {
-  runtimeInfo.dntDetected = (navigator.doNotTrack === "1");
+  // TODO: Re-enable this once we're done, I don't want to muck with my DNT
+  // browser settings just for testing.
+  //runtimeInfo.dntDetected = (navigator.doNotTrack === "1");
+  runtimeInfo.dntDetected = false;
   runtimeInfo.useSecureCookie = (location.protocol === "https:");
 
   // Cookies seem to have some weird edge cases...
