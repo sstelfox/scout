@@ -48,6 +48,7 @@
 
 const config = {
   cookiePrefix: '_scout_',
+  cookieTestName: 'test',
 }
 
 // Collected information that determines runtime behavior including identities
@@ -93,6 +94,11 @@ const detectRuntimeConfig = () => {
   runtimeInfo.cookiesSupported = testCookieSupport();
 }
 
+const generateCookieFilter = (name) => {
+  const regex = new RegExp('^' + cookieName(name) + '=(.+)$');
+  return (item) => { return item.trim().match(regex) };
+}
+
 /**
  * Return the contents of the cookie with the given name. If it isn't set or
  * cookies are disabled this will return null.
@@ -105,8 +111,7 @@ const getCookie = (name) => {
   if (runtimeInfo.cookiesSupported === false) { return null; }
 
   // Attempt to find and pull out the requested cookie
-  const cookieRegex = new RegExp('^' + cookieName(name) + '=(.+)$');
-  const matchingCookies = document.cookie.split(';').filter((item) => { return item.trim().match(cookieRegex); });
+  const matchingCookies = document.cookie.split(';').filter(generateCookieFilter(name));
 
   // No cookie was found
   if (matchingCookies.length === 0) { return null; }
@@ -169,9 +174,9 @@ const testCookieSupport = () => {
   const testVal = randomId();
 
   // Set, read, and clear a testing cookie
-  setCookie('test', testVal);
-  const cookieSupport = (getCookie('test') === testVal);
-  deleteCookie('test');
+  setCookie(config.cookieTestName, testVal);
+  const cookieSupport = (getCookie(config.cookieTestName) === testVal);
+  deleteCookie(config.cookieTestName);
 
   return cookieSupport;
 }
@@ -220,6 +225,3 @@ const valueEncoder = (value) => {
 }
 
 detectRuntimeConfig();
-
-setCookie('utf8_test', 'ಬಾ ಇಲ್ಲಿ ಸಂಭವಿಸು ಇಂದೆನ್ನ ಹೃದಯದಲಿ', 30);
-console.log(getCookie('utf8_test'));
