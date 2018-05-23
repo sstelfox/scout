@@ -21,7 +21,13 @@
  *   - How long sessions typically last
  *   - Page / server performance
  *   - Screen size breakdown
+ * - Collect some things that Google Analytics doesn't do
+ *   - Lifetime page views of a page, maybe throw tags in there as well
  *   - Errors in the tracking script itself
+ * - All data should be aggregated so there are is no user identifiable
+ *   information or entirely deleted after 7 days regardless of DNT settings
+ *   (active sessions and browser sessions may be tricky... I might leave
+ *   actives out of it for now)
  *
  * JS agent plan:
  *
@@ -400,3 +406,14 @@ try {
 } catch(error) {
   errorHandler(error);
 }
+
+// Need to be careful to have a loop if I pass this to the error handler and
+// the issue was triggered by the error handler (such as the remote server
+// being unavailable).
+const globalErrorHandler = (err) => {
+  console.error(err);
+}
+
+// Apparently only available in chrome and opera
+// Oh boy: https://blog.bugsnag.com/js-stacktraces/
+window.addEventListener("error", globalErrorHandler);
