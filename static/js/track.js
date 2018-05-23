@@ -64,8 +64,8 @@ const detectRuntimeConfig = () => {
   runtimeInfo.dntDetected = false;
   runtimeInfo.useSecureCookie = (location.protocol === 'https:');
 
-  // Cookies seem to have some weird edge cases...
-  testCookieSupport();
+  // Needs to be run after DNT detection
+  runtimeInfo.cookiesSupported = testCookieSupport();
 }
 
 /**
@@ -81,7 +81,7 @@ const getCookie = (name) => {
 
   // Attempt to find and pull out the requested cookie
   const cookieRegex = new RegExp('^' + name + '=(.+)$');
-  const matchingCookies = document.cookie.split(';').filter((item) => { return item.trim().match(cookieRegex) });
+  const matchingCookies = document.cookie.split(';').filter((item) => { return item.trim().match(cookieRegex); });
 
   // No cookie was found
   if (matchingCookies.length === 0) { return null; }
@@ -98,38 +98,36 @@ const getCookie = (name) => {
  *
  *  @param string name
  *  @param string value
- *  @param integer expiration
+ *  @param integer secondsToExpiration
  */
-const setCookie = (name, value, expiration) => {
+const setCookie = (name, value, secondsToExpiration) => {
   // Don't bother if cookies are supported (this also covers browsers with DNT set)
   if (runtimeInfo.cookiesSupported === false) { return null; }
 
-  // TODO: Should add expiration, I don't know if I want to have a
-  // configuration path or domain.
-  document.cookie = name + '=' + value + ';path=/' +
-    (runtimeInfo.useSecureCookie ? ';secure' : '');
+  let expirationTime = null;
+  if (secondsToExpiration) {
+    expirationTime = new Date();
+    expirationTime.setTime(expirationTime.getTime() + (secondsToExpiration * 1000));
+  }
+
+  // TODO: I don't know if I want to be able to configure path or domain
+  document.cookie = name + '=' + value +
+    (expirationTime ? ';expires=' + expirationTime.toUTCString() : '') +
+    ';path=/' + (runtimeInfo.useSecureCookie ? ';secure' : '');
 }
 
 /**
  *  Check whether or not we can use cookies during this browser run. The answer
- *  will be no if DNT is detected even if the browser supports it. This updates
- *  the runtimeInfo will the result.
+ *  will be no if DNT is detected even if the browser supports it.
  *
- *  TODO: Maybe I want to have this return a boolean and set the value in
- *  detectRuntimeConfig() instead?
+ * @return boolean
  */
 const testCookieSupport = () => {
   // The browser "doesn't support cookies" to us if DNT is enabled
-  if (runtimeInfo.dntDetected) {
-    runtimeInfo.cookiesSupported = false;
-    return;
-  }
+  if (runtimeInfo.dntDetected) { return false; }
 
   // Apparently this isn't supported everywhere?
-  if (navigator.cookieEnabled !== undefined) {
-    runtimeInfo.cookiesSupported = navigator.cookieEnabled;
-    return;
-  }
+  if (navigator.cookieEnabled !== undefined) { return navigator.cookieEnabled; }
 
   // TODO: If that isn't working I need to test the actual cookie support but I
   // don't have that written yet sooooo....
@@ -138,6 +136,4 @@ const testCookieSupport = () => {
 
 detectRuntimeConfig();
 
-console.log(getCookie('test'));
-setCookie('test', 'boop');
-console.log(getCookie('test'));
+console.log(runtimeInfo);
