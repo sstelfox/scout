@@ -35,7 +35,7 @@
  * + Generate or load a session identifier and a browser identifier, if DNT is
  *   detected this will be the special value 'dnt'. If cookies are supported
  *   I'll want to save/update the respective cookie.
- * - Send initial page view information to the server
+ * + Send initial page view information to the server
  * - Register unload handler to detect when page view is complete
  * - Register performance handler, collect already known performance metrics
  * - Collect additional browser information such as user agent, screen size,
@@ -53,6 +53,14 @@ const config = {
   cookieSessionIDName: 'sid',
   cookieSessionExpiration: (60 * 60 * 2),
   cookieTestName: 'chk',
+
+  errorEndPoint: 'http://127.0.0.1:9292/api/v1/error',
+  trackingEndPoint: 'http://127.0.0.1:9292/api/v1/analytics',
+}
+
+const BEACON_TYPE = {
+  PAGE_VIEW_START: 0,
+  PAGE_VIEW_END: 1,
 }
 
 // Collected information that determines runtime behavior including identities
@@ -109,12 +117,22 @@ const detectRuntimeConfig = () => {
   runtimeInfo.cookiesSupported = testCookieSupport();
 }
 
+/**
+ *  Handle errors that crop up during attempt at collecting analytics and
+ *  report them to a central server.
+ *
+ *  @param error error
+ */
 const errorHandler = (error) => {
-  // TODO: Send errors
-  console.error({
-    msg: error.message,
-    stack: error.stack,
-  });
+  navigator.sendBeacon(
+    config.errorEndPoint,
+    JSON.stringify({
+      msg: error.message,
+      stack: error.stack,
+    })
+  );
+
+  console.error(error);
 }
 
 /**
@@ -155,6 +173,17 @@ const getCookie = (name) => {
 }
 
 /**
+ *  Generate a random value consisting of 8 lowercase alphanumeric characters.
+ *  This will be used for identifiers and should be more than enough to
+ *  uniquely identify browsers and sessions.
+ *
+ *  @return string
+ */
+const randomId = () => {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+/**
  *  If we hit something I think might be an edge case, we can create an
  *  artificial error and report it through the normal system.
  *
@@ -165,14 +194,23 @@ const reportEdgeCase = (caseName) => {
 }
 
 /**
- *  Generate a random value consisting of 8 lowercase alphanumeric characters.
- *  This will be used for identifiers and should be more than enough to
- *  uniquely identify browsers and sessions.
- *
- *  @return string
+ * The initial page report of just an individual page view. More detailed
+ * metrics will come later. This happens even for DNT users.
  */
-const randomId = () => {
-  return Math.random().toString(36).slice(2, 10);
+const reportPageView = () => {
+  navigator.sendBeacon(
+    config.trackingEndPoint,
+    JSON.stringify({
+      bid: runtimeInfo.browserID,
+      bfs: runtimeInfo.browserFirstSeen,
+      sid: runtimeInfo.sessionID,
+      sfs: runtimeInfo.sessionFirstSeen,
+      svc: runtimeInfo.sessionViewCount,
+      page: location.href,
+      ts: runtimeInfo.clock.getTime(),
+      type: BEACON_TYPE.PAGE_VIEW_START,
+    })
+  );
 }
 
 /**
@@ -358,9 +396,7 @@ try {
   detectRuntimeConfig();
   setupBrowserIdentity();
   setupSessionIdentity();
-  runtimeInfo.blah.fail;
+  reportPageView();
 } catch(error) {
   errorHandler(error);
 }
-
-console.log(runtimeInfo);
