@@ -103,6 +103,17 @@ const getCookie = (name) => {
 }
 
 /**
+ *  Generate a random value consisting of 8 lowercase alphanumeric characters.
+ *  This will be used for identifiers and should be more than enough to
+ *  uniquely identify browsers and sessions.
+ *
+ *  @return string
+ */
+const randomId = () => {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+/**
  *  Sets a cookie with the given name to the provided value. If an expiration
  *  is provided, the cookie will automatically expire after the provided number
  *  of seconds.
@@ -140,15 +151,15 @@ const testCookieSupport = () => {
   // Apparently this isn't supported everywhere?
   if (navigator.cookieEnabled !== undefined) { return navigator.cookieEnabled; }
 
-  // TODO: If that isn't working I need to test the actual cookie support but I
-  // don't have that written yet sooooo....
-  return;
+  // Generate a verification value
+  const testVal = randomId();
+
+  // Set, read, and clear a testing cookie
+  setCookie('test', testVal);
+  const cookieSupport = (getCookie('test') === testVal);
+  deleteCookie('test');
+
+  return cookieSupport;
 }
 
 detectRuntimeConfig();
-
-console.log(getCookie('bloop'));
-setCookie('bloop', 'some random value');
-console.log(getCookie('bloop'));
-deleteCookie('bloop');
-console.log(getCookie('bloop'));
