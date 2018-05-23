@@ -146,7 +146,7 @@ const getCookie = (name) => {
   // We already know we have at least one value, as far as I know browsers will
   // not make more than one cookie available under the same name at once. If
   // this assumption is ever the case I want to know about it.
-  if (values.length > 1) { reportEdgeCase('Duplicate cookie names do need to be handled...'); }
+  if (matchingCookies.length > 1) { reportEdgeCase('Duplicate cookie names do need to be handled...'); }
 
   return valueDecoder(matchingCookies[0].split('=')[1].trim());
 }
@@ -358,3 +358,5 @@ try {
 } catch(error) {
   errorHandler(error);
 }
+
+console.log(runtimeInfo);
