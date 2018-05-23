@@ -53,6 +53,10 @@ let runtimeInfo = {
   useSecureCookie: null,
 }
 
+/**
+ *  This should be run before anything else, it detects the various required
+ *  features and configuration required for the tracker.
+ */
 const detectRuntimeConfig = () => {
   // TODO: Re-enable this once we're done, I don't want to muck with my DNT
   // browser settings just for testing.
@@ -64,6 +68,13 @@ const detectRuntimeConfig = () => {
   testCookieSupport();
 }
 
+/**
+ * Return the contents of the cookie with the given name. If it isn't set or
+ * cookies are disabled this will return null.
+ *
+ * @param string name
+ * @return null|string
+ */
 const getCookie = (name) => {
   // Don't bother if cookies are supported (this also covers browsers with DNT set)
   if (runtimeInfo.cookiesSupported === false) { return null; }
@@ -80,7 +91,16 @@ const getCookie = (name) => {
   return matchingCookies[0].split('=')[1].trim();
 }
 
-const setCookie = (name, value) => {
+/**
+ *  Sets a cookie with the given name to the provided value. If an expiration
+ *  is provided, the cookie will automatically expire after the provided number
+ *  of seconds.
+ *
+ *  @param string name
+ *  @param string value
+ *  @param integer expiration
+ */
+const setCookie = (name, value, expiration) => {
   // Don't bother if cookies are supported (this also covers browsers with DNT set)
   if (runtimeInfo.cookiesSupported === false) { return null; }
 
@@ -90,6 +110,14 @@ const setCookie = (name, value) => {
     (runtimeInfo.useSecureCookie ? ';secure' : '');
 }
 
+/**
+ *  Check whether or not we can use cookies during this browser run. The answer
+ *  will be no if DNT is detected even if the browser supports it. This updates
+ *  the runtimeInfo will the result.
+ *
+ *  TODO: Maybe I want to have this return a boolean and set the value in
+ *  detectRuntimeConfig() instead?
+ */
 const testCookieSupport = () => {
   // The browser "doesn't support cookies" to us if DNT is enabled
   if (runtimeInfo.dntDetected) {
@@ -105,7 +133,7 @@ const testCookieSupport = () => {
 
   // TODO: If that isn't working I need to test the actual cookie support but I
   // don't have that written yet sooooo....
-  return false;
+  return;
 }
 
 detectRuntimeConfig();
