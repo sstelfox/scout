@@ -111,7 +111,10 @@ const detectRuntimeConfig = () => {
 
 const errorHandler = (error) => {
   // TODO: Send errors
-  console.error(error);
+  console.error({
+    msg: error.message,
+    stack: error.stack,
+  });
 }
 
 /**
@@ -355,6 +358,7 @@ try {
   detectRuntimeConfig();
   setupBrowserIdentity();
   setupSessionIdentity();
+  runtimeInfo.blah.fail;
 } catch(error) {
   errorHandler(error);
 }
