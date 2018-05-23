@@ -32,7 +32,7 @@
  *   information, we just won't associate it with any form of session or the
  *   browser itself. I may still want to log a little bit of information such
  *   as size of display window, but we'll see when I get to that point.
- * - Generate or load a session identifier and a browser identifier, if DNT is
+ * + Generate or load a session identifier and a browser identifier, if DNT is
  *   detected this will be the special value 'dnt'. If cookies are supported
  *   I'll want to save/update the respective cookie.
  * - Send initial page view information to the server
@@ -57,12 +57,18 @@ const config = {
 
 // Collected information that determines runtime behavior including identities
 let runtimeInfo = {
+  clock: null,
+
   cookiesSupported: null,
   dntDetected: null,
   useSecureCookie: null,
 
+  browserFirstSeen: null,
   browserID: null,
+
+  sessionFirstSeen: null,
   sessionID: null,
+  sessionViewCount: null,
 }
 
 /**
@@ -91,6 +97,8 @@ const deleteCookie = (name) => {
  *  features and configuration required for the tracker.
  */
 const detectRuntimeConfig = () => {
+  runtimeInfo.clock = new Date();
+
   // TODO: Re-enable this once we're done, I don't want to muck with my DNT
   // browser settings just for testing.
   //runtimeInfo.dntDetected = (navigator.doNotTrack === '1');
@@ -185,6 +193,7 @@ const setupBrowserIdentity = () => {
   let bidCookieContents = getCookie(config.cookieBrowserIDName);
 
   if (bidCookieContents === null) {
+    runtimeInfo.browserFirstSeen = runtimeInfo.clock.getTime();
     runtimeInfo.browserID = (runtimeInfo.dntDetected ? 'dnt' : randomId());
   } else {
     let parsedCookie = null;
@@ -202,10 +211,18 @@ const setupBrowserIdentity = () => {
       return;
     }
 
+    runtimeInfo.browserFirstSeen = parsedCookie.ts;
     runtimeInfo.browserID = parsedCookie.bid;
   }
 
-  setCookie(config.cookieBrowserIDName, JSON.stringify({ bid: runtimeInfo.browserID }), config.cookieBrowserExpiration);
+  setCookie(
+    config.cookieBrowserIDName,
+    JSON.stringify({
+      bid: runtimeInfo.browserID,
+      ts: runtimeInfo.browserFirstSeen,
+    }),
+    config.cookieBrowserExpiration
+  );
 }
 
 /**
@@ -217,7 +234,9 @@ const setupSessionIdentity = () => {
   let sidCookieContents = getCookie(config.cookieSessionIDName);
 
   if (sidCookieContents === null) {
+    runtimeInfo.sessionFirstSeen = runtimeInfo.clock.getTime();
     runtimeInfo.sessionID = (runtimeInfo.dntDetected ? 'dnt' : randomId());
+    runtimeInfo.sessionViewCount = 0;
   } else {
     let parsedCookie = null;
 
@@ -234,10 +253,20 @@ const setupSessionIdentity = () => {
       return;
     }
 
+    runtimeInfo.sessionFirstSeen = parsedCookie.ts;
     runtimeInfo.sessionID = parsedCookie.sid;
+    runtimeInfo.sessionViewCount = parsedCookie.svc;
   }
 
-  setCookie(config.cookieSessionIDName, JSON.stringify({ bid: runtimeInfo.sessionID }), config.cookieSessionExpiration);
+  setCookie(
+    config.cookieSessionIDName,
+    JSON.stringify({
+      sid: runtimeInfo.sessionID,
+      svc: runtimeInfo.sessionViewCount,
+      ts: runtimeInfo.sessionFirstSeen,
+    }),
+    config.cookieSessionExpiration
+  );
 }
 
 /**
