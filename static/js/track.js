@@ -271,6 +271,8 @@ const setupSessionIdentity = () => {
     runtimeInfo.sessionViewCount = parsedCookie.svc;
   }
 
+  runtimeInfo.sessionViewCount += 1;
+
   setCookie(
     config.cookieSessionIDName,
     JSON.stringify({
