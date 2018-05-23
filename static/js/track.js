@@ -54,6 +54,17 @@ let runtimeInfo = {
 }
 
 /**
+ * Seems like the best way to delete a cookie is to set an expiration value in
+ * the past and let the browser clean it up. At the very least this overrides
+ * the value present to be empty.
+ *
+ * @param string name
+ */
+const deleteCookie = (name) => {
+  setCookie(name, '', -2592000);
+}
+
+/**
  *  This should be run before anything else, it detects the various required
  *  features and configuration required for the tracker.
  */
@@ -136,4 +147,8 @@ const testCookieSupport = () => {
 
 detectRuntimeConfig();
 
-console.log(runtimeInfo);
+console.log(getCookie('bloop'));
+setCookie('bloop', 'some random value');
+console.log(getCookie('bloop'));
+deleteCookie('bloop');
+console.log(getCookie('bloop'));
