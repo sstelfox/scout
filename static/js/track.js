@@ -46,11 +46,25 @@
  * browser though.
  */
 
+const config = {
+  cookiePrefix: '_scout_',
+}
+
 // Collected information that determines runtime behavior including identities
 let runtimeInfo = {
   cookiesSupported: null,
   dntDetected: null,
   useSecureCookie: null,
+}
+
+/**
+ *  Returns the name of the cookie with the global prefix.
+ *
+ *  @param string name
+ *  @return string
+ */
+const cookieName = (name) => {
+  return config.cookiePrefix + name;
 }
 
 /**
@@ -91,7 +105,7 @@ const getCookie = (name) => {
   if (runtimeInfo.cookiesSupported === false) { return null; }
 
   // Attempt to find and pull out the requested cookie
-  const cookieRegex = new RegExp('^' + name + '=(.+)$');
+  const cookieRegex = new RegExp('^' + cookieName(name) + '=(.+)$');
   const matchingCookies = document.cookie.split(';').filter((item) => { return item.trim().match(cookieRegex); });
 
   // No cookie was found
@@ -133,7 +147,7 @@ const setCookie = (name, value, secondsToExpiration) => {
   }
 
   // TODO: I don't know if I want to be able to configure path or domain
-  document.cookie = name + '=' + value +
+  document.cookie = cookieName(name) + '=' + value +
     (expirationTime ? ';expires=' + expirationTime.toUTCString() : '') +
     ';path=/' + (runtimeInfo.useSecureCookie ? ';secure' : '');
 }
@@ -163,3 +177,6 @@ const testCookieSupport = () => {
 }
 
 detectRuntimeConfig();
+
+setCookie('test', randomId(), 300);
+console.log(getCookie('test'));
