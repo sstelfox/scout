@@ -25,7 +25,7 @@
  *
  * JS agent plan:
  *
- * - Want to detect DNT, otherwise we'll want to know if cookies are
+ * + Want to detect DNT, otherwise we'll want to know if cookies are
  *   supported, and if we're on a secure site we'll want to use secure cookies
  *   (insecure will mostly be for development).
  * - If DNT is detected, we still want to log page views and performance
@@ -56,12 +56,38 @@ let runtimeInfo = {
 const detectRuntimeConfig = () => {
   // TODO: Re-enable this once we're done, I don't want to muck with my DNT
   // browser settings just for testing.
-  //runtimeInfo.dntDetected = (navigator.doNotTrack === "1");
+  //runtimeInfo.dntDetected = (navigator.doNotTrack === '1');
   runtimeInfo.dntDetected = false;
-  runtimeInfo.useSecureCookie = (location.protocol === "https:");
+  runtimeInfo.useSecureCookie = (location.protocol === 'https:');
 
   // Cookies seem to have some weird edge cases...
   testCookieSupport();
+}
+
+const getCookie = (name) => {
+  // Don't bother if cookies are supported (this also covers browsers with DNT set)
+  if (runtimeInfo.cookiesSupported === false) { return null; }
+
+  // Attempt to find and pull out the requested cookie
+  const cookieRegex = new RegExp('^' + name + '=(.+)$');
+  const matchingCookies = document.cookie.split(';').filter((item) => { return item.trim().match(cookieRegex) });
+
+  // No cookie was found
+  if (matchingCookies.length === 0) { return null; }
+
+  // Can there be more than one result? Some quick Googling says it might be a
+  // problem... hmmm.
+  return matchingCookies[0].split('=')[1].trim();
+}
+
+const setCookie = (name, value) => {
+  // Don't bother if cookies are supported (this also covers browsers with DNT set)
+  if (runtimeInfo.cookiesSupported === false) { return null; }
+
+  // TODO: Should add expiration, I don't know if I want to have a
+  // configuration path or domain.
+  document.cookie = name + '=' + value + ';path=/' +
+    (runtimeInfo.useSecureCookie ? ';secure' : '');
 }
 
 const testCookieSupport = () => {
@@ -77,11 +103,13 @@ const testCookieSupport = () => {
     return;
   }
 
-  // If that isn't working I need to test the actual cookie support but I don't
-  // have that written yet sooooo....
+  // TODO: If that isn't working I need to test the actual cookie support but I
+  // don't have that written yet sooooo....
   return false;
 }
 
 detectRuntimeConfig();
 
-console.log(runtimeInfo);
+console.log(getCookie('test'));
+setCookie('test', 'boop');
+console.log(getCookie('test'));
