@@ -45,3 +45,40 @@
  * the end of page view, and the details in the middle. None should block the
  * browser though.
  */
+
+// Collected information that determines runtime behavior including identities
+let runtimeInfo = {
+  cookiesSupported: null,
+  dntDetected: null,
+  useSecureCookie: null,
+}
+
+const detectRuntimeConfig = () => {
+  runtimeInfo.dntDetected = (navigator.doNotTrack === "1");
+  runtimeInfo.useSecureCookie = (location.protocol === "https:");
+
+  // Cookies seem to have some weird edge cases...
+  testCookieSupport();
+}
+
+const testCookieSupport = () => {
+  // The browser "doesn't support cookies" to us if DNT is enabled
+  if (runtimeInfo.dntDetected) {
+    runtimeInfo.cookiesSupported = false;
+    return;
+  }
+
+  // Apparently this isn't supported everywhere?
+  if (navigator.cookieEnabled !== undefined) {
+    runtimeInfo.cookiesSupported = navigator.cookieEnabled;
+    return;
+  }
+
+  // If that isn't working I need to test the actual cookie support but I don't
+  // have that written yet sooooo....
+  return false;
+}
+
+detectRuntimeConfig();
+
+console.log(runtimeInfo);
