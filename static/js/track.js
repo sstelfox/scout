@@ -83,6 +83,8 @@ let runtimeInfo = {
   sessionFirstSeen: null,
   sessionID: null,
   sessionViewCount: null,
+
+  dataQueue: [],
 }
 
 /**
@@ -130,6 +132,8 @@ const detectRuntimeConfig = () => {
  *  @param error error
  */
 const errorHandler = (error) => {
+  console.error(error);
+
   navigator.sendBeacon(
     config.errorEndPoint,
     JSON.stringify({
@@ -137,8 +141,6 @@ const errorHandler = (error) => {
       stack: error.stack,
     })
   );
-
-  console.error(error);
 }
 
 /**
@@ -179,6 +181,27 @@ const getCookie = (name) => {
 }
 
 /**
+ * If there is any queued data this method will trigger a low priority network
+ * request to send the data to the analytics server.
+ */
+const immediateDataSend = () => {
+  // We don't have any data to send
+  if (runtimeInfo.dataQueue.length === 0) { return; }
+
+  const dataPkt = {
+    bid: runtimeInfo.browserID,
+    sid: runtimeInfo.sessionID,
+    svc: runtimeInfo.sessionViewCount,
+
+    data: runtimeInfo.dataQueue,
+    ts: runtimeInfo.clock.getTime(),
+  }
+  runtimeInfo.dataQueue = [];
+
+  navigator.sendBeacon(config.trackingEndPoint, JSON.stringify(dataPkt));
+}
+
+/**
  *  Generate a random value consisting of 8 lowercase alphanumeric characters.
  *  This will be used for identifiers and should be more than enough to
  *  uniquely identify browsers and sessions.
@@ -187,6 +210,14 @@ const getCookie = (name) => {
  */
 const randomId = () => {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/**
+ * Bind our unload handler to the global page unload handler so we can let our
+ * analytics server know how long this page view lasted.
+ */
+const registerUnloadHandler = () => {
+  window.addEventListener('unload', unloadHandler);
 }
 
 /**
@@ -201,22 +232,24 @@ const reportEdgeCase = (caseName) => {
 
 /**
  * The initial page report of just an individual page view. More detailed
- * metrics will come later. This happens even for DNT users.
+ * metrics will come later. This happens even for DNT users and effectively
+ * doesn't contain any information about the user besides when the page view
+ * happened.
  */
 const reportPageView = () => {
-  navigator.sendBeacon(
-    config.trackingEndPoint,
-    JSON.stringify({
-      bid: runtimeInfo.browserID,
-      bfs: runtimeInfo.browserFirstSeen,
-      sid: runtimeInfo.sessionID,
-      sfs: runtimeInfo.sessionFirstSeen,
-      svc: runtimeInfo.sessionViewCount,
-      page: location.href,
-      ts: runtimeInfo.clock.getTime(),
-      type: BEACON_TYPE.PAGE_VIEW_START,
-    })
-  );
+  runtimeInfo.dataQueue.push({
+    bfs: runtimeInfo.browserFirstSeen,
+    sfs: runtimeInfo.sessionFirstSeen,
+
+    title: document.title,
+    // TODO: Strip out query and path
+    url: location.href,
+
+    ts: runtimeInfo.clock.getTime(),
+    type: BEACON_TYPE.PAGE_VIEW_START,
+  });
+
+  immediateDataSend();
 }
 
 /**
@@ -356,6 +389,19 @@ const testCookieSupport = () => {
 }
 
 /**
+ *  When this handler gets triggered, queue up a notification that the page
+ *  view was complete and send that along with any other queued messages.
+ */
+const unloadHandler = () => {
+  runtimeInfo.dataQueue.push({
+    ts: runtimeInfo.clock.getTime(),
+    type: BEACON_TYPE.PAGE_VIEW_END,
+  });
+
+  immediateDataSend();
+}
+
+/**
  * This reverses the valueEncoder() encoding, translating back into regular
  * base64, decoding it, then decoding back to the unsafe version.
  *
@@ -398,14 +444,19 @@ const valueEncoder = (value) => {
   return btoa(safeString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+console.log('Beginning track script...');
+
 try {
   detectRuntimeConfig();
   setupBrowserIdentity();
   setupSessionIdentity();
   reportPageView();
+  registerUnloadHandler();
 } catch(error) {
   errorHandler(error);
 }
+
+console.log('Finished executing track script...');
 
 // Need to be careful to have a loop if I pass this to the error handler and
 // the issue was triggered by the error handler (such as the remote server
