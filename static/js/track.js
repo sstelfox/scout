@@ -235,6 +235,10 @@ const queuePerformanceEntry = (entry) => {
   simpleData.ts = runtimeInfo.clock.getTime();
   simpleData.type = BEACON_TYPE.PAGE_VIEW_PERFORMANCE;
 
+  if (simpleData.entryType === 'resource' && (simpleData.name === config.errorEndPoint || simpleData.name === config.trackingEndPoint)) {
+    return;
+  }
+
   queueData(simpleData);
 };
 
