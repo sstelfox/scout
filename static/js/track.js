@@ -60,6 +60,9 @@ const config = {
   cookieSessionExpiration: (60 * 60 * 2),
   cookieTestName: 'chk',
 
+  // Send queued data at most once every 60 seconds
+  dataReportInterval: 60,
+
   errorEndPoint: 'http://127.0.0.1:9292/api/v1/error',
   trackingEndPoint: 'http://127.0.0.1:9292/api/v1/analytics',
 }
@@ -67,6 +70,7 @@ const config = {
 const BEACON_TYPE = {
   PAGE_VIEW_START: 0,
   PAGE_VIEW_END: 1,
+  PAGE_VIEW_PERFORMANCE: 2,
 }
 
 // Collected information that determines runtime behavior including identities
@@ -85,6 +89,7 @@ let runtimeInfo = {
   sessionViewCount: null,
 
   dataQueue: [],
+  queueTimer: null,
 }
 
 /**
@@ -184,7 +189,7 @@ const getCookie = (name) => {
  * If there is any queued data this method will trigger a low priority network
  * request to send the data to the analytics server.
  */
-const immediateDataSend = () => {
+const immediateBeaconSend = () => {
   // We don't have any data to send
   if (runtimeInfo.dataQueue.length === 0) { return; }
 
@@ -198,8 +203,40 @@ const immediateDataSend = () => {
   }
   runtimeInfo.dataQueue = [];
 
+  if (runtimeInfo.queueTimer !== null) {
+    clearInterval(runtimeInfo.queueTimer);
+    runtimeInfo.queueTimer = null;
+  }
+
   navigator.sendBeacon(config.trackingEndPoint, JSON.stringify(dataPkt));
 }
+
+/**
+ *  Batches up data to send. After the dataReportInterval in seconds has
+ *  elapsed it will send all data that has been queued up.
+ */
+const queueData = (data) => {
+  runtimeInfo.dataQueue.push(data);
+
+  if (runtimeInfo.queueTimer === null) {
+    runtimeInfo.queueTimer = setInterval(immediateBeaconSend, config.dataReportInterval * 1000);
+  }
+}
+
+/**
+ * When a performance entry comes in this parses the object adjusts it for
+ * consumption by the server and queued it for transport.
+ */
+const queuePerformanceEntry = (entry) => {
+  // I hate the weird performance API objects, they're inconsistent and can't
+  // be modified or dealt with simply. This just ditches the object.
+  const simpleData = JSON.parse(JSON.stringify(entry));
+
+  simpleData.ts = runtimeInfo.clock.getTime();
+  simpleData.type = BEACON_TYPE.PAGE_VIEW_PERFORMANCE;
+
+  queueData(simpleData);
+};
 
 /**
  *  Generate a random value consisting of 8 lowercase alphanumeric characters.
@@ -211,6 +248,24 @@ const immediateDataSend = () => {
 const randomId = () => {
   return Math.random().toString(36).slice(2, 10);
 }
+
+/**
+ * Start collecting performance entries about resource loading and paints. The
+ * data will be queued up and sent in batches.
+ */
+const recordPerformanceMetrics = () => {
+  const observer = new window.PerformanceObserver(list => {
+    list.getEntries().forEach((entry) => { queuePerformanceEntry(entry); });
+  });
+
+  observer.observe({
+    entryTypes: ['frame', 'mark', 'measure', 'navigation', 'paint', 'resource']
+  });
+
+  Array.from(performance.getEntries()).forEach((entry) => {
+    queuePerformanceEntry(entry);
+  });
+};
 
 /**
  * Bind our unload handler to the global page unload handler so we can let our
@@ -242,14 +297,13 @@ const reportPageView = () => {
     sfs: runtimeInfo.sessionFirstSeen,
 
     title: document.title,
-    // TODO: Strip out query and path
-    url: location.href,
+    url: (location.protocol + '//' + location.host + location.pathname),
 
     ts: runtimeInfo.clock.getTime(),
     type: BEACON_TYPE.PAGE_VIEW_START,
   });
 
-  immediateDataSend();
+  immediateBeaconSend();
 }
 
 /**
@@ -398,7 +452,7 @@ const unloadHandler = () => {
     type: BEACON_TYPE.PAGE_VIEW_END,
   });
 
-  immediateDataSend();
+  immediateBeaconSend();
 }
 
 /**
@@ -434,7 +488,7 @@ const valueDecoder = (value) => {
  */
 const valueEncoder = (value) => {
   // Safely perform encoding of multibyte values into a byte string
-  let safeString = encodeURIComponent(value)
+  const safeString = encodeURIComponent(value)
                     .replace(
                       /%([0-9A-F]{2})/g,
                       (_, matchedByte) => { return String.fromCharCode('0x' + matchedByte) }
@@ -444,19 +498,16 @@ const valueEncoder = (value) => {
   return btoa(safeString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-console.log('Beginning track script...');
-
 try {
   detectRuntimeConfig();
   setupBrowserIdentity();
   setupSessionIdentity();
   reportPageView();
   registerUnloadHandler();
+  recordPerformanceMetrics();
 } catch(error) {
   errorHandler(error);
 }
-
-console.log('Finished executing track script...');
 
 // Need to be careful to have a loop if I pass this to the error handler and
 // the issue was triggered by the error handler (such as the remote server
@@ -467,4 +518,4 @@ const globalErrorHandler = (err) => {
 
 // Apparently only available in chrome and opera
 // Oh boy: https://blog.bugsnag.com/js-stacktraces/
-window.addEventListener("error", globalErrorHandler);
+window.addEventListener('error', globalErrorHandler);
