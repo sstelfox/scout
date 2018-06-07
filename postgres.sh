@@ -21,9 +21,11 @@ fi
 
 BASE_DIRECTORY="$( cd "$(dirname $( dirname "${BASH_SOURCE[0]}" ))" && pwd )"
 
+source ${BASE_DIRECTORY}/.scout-postgresql-params.env
+
 if docker ps -a | grep -q scout-postgresql &> /dev/null; then
   docker rm -fv scout-postgresql
 fi
 
-docker run -d -p 5432:5432 --name scout-postgresql \
-  --env-file ${BASE_DIRECTORY}/.postgresql-params.env postgres:10.3-alpine
+docker run -d -p ${POSTGRES_PORT}:5432 --name scout-postgresql \
+  --env-file ${BASE_DIRECTORY}/.scout-postgresql-params.env postgres:10.3-alpine
