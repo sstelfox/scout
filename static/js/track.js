@@ -193,6 +193,19 @@ const immediateBeaconSend = () => {
   // We don't have any data to send
   if (runtimeInfo.dataQueue.length === 0) { return; }
 
+  /**
+   * While the cookie does include this information there are two problems with
+   * relying on it. The first is that the analytics server isn't guaranteed to
+   * be on the same domain or a subdomain of the domain being tracked.
+   *
+   * The second issue is that the view count is being used to associate the
+   * different reported requests and if the user opens multiple pages the
+   * cookie will update its view count and all metrics will be associated with
+   * the new page not the page that is currently being viewed.
+   *
+   * Ultimately this is a difference of ~50 bytes/request which isn't that big
+   * of a deal...
+   */
   const dataPkt = {
     bid: runtimeInfo.browserID,
     sid: runtimeInfo.sessionID,

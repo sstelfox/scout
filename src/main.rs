@@ -10,7 +10,8 @@ use actix_web::http::{Method, StatusCode};
 use actix_web::{App, fs, HttpRequest, HttpResponse, middleware, pred, Result, server};
 use dotenv::dotenv;
 
-fn analytics_handling(_req: HttpRequest) -> Result<fs::NamedFile> {
+fn analytics_handling(req: HttpRequest) -> Result<fs::NamedFile> {
+    println!("{:?}", req);
     Ok(fs::NamedFile::open("static/fixed_api_response.json")?)
 }
 
