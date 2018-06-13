@@ -28,7 +28,8 @@ fn not_found(_req: HttpRequest) -> Result<fs::NamedFile> {
 }
 
 fn api_not_found(_req: HttpRequest) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/fixed_api_not_found.json")?.set_status_code(StatusCode::NOT_FOUND))
+    Ok(fs::NamedFile::open("static/fixed_api_not_found.json")?
+        .set_status_code(StatusCode::NOT_FOUND))
 }
 
 fn page_one(_req: HttpRequest) -> Result<fs::NamedFile> {
@@ -70,7 +71,9 @@ fn main() {
                 r.method(Method::GET).f(not_found);
                 r.route().filter(pred::Not(pred::Get())).f( |_req| HttpResponse::MethodNotAllowed() );
             }),
-    ]).bind("127.0.0.1:9292")
+    ])
+        .keep_alive(30)
+        .bind("127.0.0.1:9292")
         .expect("Unable to bind to 127.0.0.1:9292")
         .start();
 
