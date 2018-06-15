@@ -12,6 +12,7 @@ extern crate log;
 use actix_web::http::{Method, StatusCode};
 use actix_web::{App, fs, HttpRequest, HttpResponse, middleware, pred, Result, server};
 use dotenv::dotenv;
+use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AnalyticData {
@@ -69,8 +70,18 @@ enum AnalyticType {
 
 #[derive(Debug, Serialize, Deserialize)]
 enum PerfEntryType {
-    // This doesn't work... Need to figure this out
-    //Navigation = String::from("navigation"),
+    Navigation,
+}
+
+impl FromStr for PerfEntryType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<PerfEntryType, ()> {
+        match s {
+            "performance" => Ok(PerfEntryType::Navigation),
+            _ => Err(()),
+        }
+    }
 }
 
 fn analytics_handling(req: HttpRequest) -> Result<fs::NamedFile> {
