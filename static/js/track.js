@@ -46,6 +46,12 @@
  * - Register performance handler, collect already known performance metrics
  * - Collect additional browser information such as user agent, screen size,
  *   and platform.
+ * - Maybe eventually send data over websockets and fallback on the POST
+ *   request?
+ * - It would be nice to collect performance metrics on the tracking requests
+ *   as well, but currently this always triggers recurring requests and isn't
+ *   ideal. Maybe have a flag for data queue that doesn't trigger the
+ *   background interval.
  *
  * I generally want to limit this to three requests, the initial page request,
  * the end of page view, and the details in the middle. None should block the
@@ -67,10 +73,10 @@ const config = {
   trackingEndPoint: 'http://127.0.0.1:9292/api/v1/analytics',
 }
 
-const BEACON_TYPE = {
-  PAGE_VIEW_START: 0,
-  PAGE_VIEW_END: 1,
-  PAGE_VIEW_PERFORMANCE: 2,
+const ANALYTIC_TYPE = {
+  VIEW_START: 0,
+  VIEW_END: 1,
+  VIEW_PERFORMANCE: 2,
 }
 
 // Collected information that determines runtime behavior including identities
@@ -139,13 +145,10 @@ const detectRuntimeConfig = () => {
 const errorHandler = (error) => {
   console.error(error);
 
-  navigator.sendBeacon(
-    config.errorEndPoint,
-    JSON.stringify({
-      msg: error.message,
-      stack: error.stack,
-    })
-  );
+  // The browser doesn't support sendBeacon
+  if (!navigator.sendBeacon) { return; }
+
+  navigator.sendBeacon(config.errorEndPoint, JSON.stringify({ msg: error.message, stack: error.stack, }));
 }
 
 /**
@@ -190,6 +193,9 @@ const getCookie = (name) => {
  * request to send the data to the analytics server.
  */
 const immediateBeaconSend = () => {
+  // The browser doesn't support sendBeacon
+  if (!navigator.sendBeacon) { return; }
+
   // We don't have any data to send
   if (runtimeInfo.dataQueue.length === 0) { return; }
 
@@ -221,6 +227,7 @@ const immediateBeaconSend = () => {
     runtimeInfo.queueTimer = null;
   }
 
+  console.log(dataPkt);
   navigator.sendBeacon(config.trackingEndPoint, JSON.stringify(dataPkt));
 }
 
@@ -243,16 +250,21 @@ const queueData = (data) => {
 const queuePerformanceEntry = (entry) => {
   // I hate the weird performance API objects, they're inconsistent and can't
   // be modified or dealt with simply. This just ditches the object.
-  const simpleData = JSON.parse(JSON.stringify(entry));
+  const perfEntry = JSON.parse(JSON.stringify(entry));
 
-  simpleData.ts = runtimeInfo.clock.getTime();
-  simpleData.type = BEACON_TYPE.PAGE_VIEW_PERFORMANCE;
-
-  if (simpleData.entryType === 'resource' && (simpleData.name === config.errorEndPoint || simpleData.name === config.trackingEndPoint)) {
+  // Don't record performance metrics on the analytics endpoints. Without this
+  // we'll receive an analytics request every interval only reporting the
+  // performance of the analytics endpoint.
+  if (perfEntry.entryType === 'resource' &&
+        (perfEntry.name === config.errorEndPoint || perfEntry.name == config.trackingEndPoint)) {
     return;
   }
 
-  queueData(simpleData);
+  queueData({
+    ts: runtimeInfo.clock.getTime(),
+    type: ANALYTIC_TYPE.VIEW_PERFORMANCE,
+    perfEntry: perfEntry,
+  });
 };
 
 /**
@@ -317,7 +329,7 @@ const reportPageView = () => {
     url: (location.protocol + '//' + location.host + location.pathname),
 
     ts: runtimeInfo.clock.getTime(),
-    type: BEACON_TYPE.PAGE_VIEW_START,
+    type: ANALYTIC_TYPE.VIEW_START,
   });
 
   immediateBeaconSend();
@@ -466,7 +478,7 @@ const testCookieSupport = () => {
 const unloadHandler = () => {
   runtimeInfo.dataQueue.push({
     ts: runtimeInfo.clock.getTime(),
-    type: BEACON_TYPE.PAGE_VIEW_END,
+    type: ANALYTIC_TYPE.VIEW_END,
   });
 
   immediateBeaconSend();
