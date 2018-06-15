@@ -2,6 +2,9 @@ extern crate actix;
 extern crate actix_web;
 extern crate dotenv;
 extern crate env_logger;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 
 #[macro_use]
 extern crate log;
@@ -9,6 +12,66 @@ extern crate log;
 use actix_web::http::{Method, StatusCode};
 use actix_web::{App, fs, HttpRequest, HttpResponse, middleware, pred, Result, server};
 use dotenv::dotenv;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AnalyticData {
+    // This one is going to be tricky... I need to decode based on the 'type'
+    // field (which will be AnalyticType) then decode into its final data type
+    // based on that.
+    #[serde(rename = "type")]
+    analytic_type: AnalyticType,
+
+    #[serde(rename = "ts")]
+    timestamp: u64,
+
+    // Type 0 - VIEW_START
+    // browser_first_seen: u64,
+    // session_first_seen: u64,
+    // title: String,
+    // url: String,
+
+    // Type 1 - VIEW_END
+    //
+    // no additional fields, timestamp can be used to close the session
+
+    // Type 2 - VIEW_PERFORMANCE
+    // perf_entry: AnalyticPerfEntry,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AnalyticPerfEntry {
+    entry_type: PerfEntryType,
+    // This is going to need a lot more fleshing out...
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AnalyticRequest {
+    #[serde(rename = "bid")]
+    browser_id: String,
+
+    #[serde(rename = "sid")]
+    session_id: String,
+
+    #[serde(rename = "svc")]
+    session_view_count: u64,
+
+    #[serde(rename = "ts")]
+    timestamp: u64,
+    data: Vec<AnalyticData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum AnalyticType {
+    ViewStart = 0,
+    ViewEnd = 1,
+    ViewPerformance = 2,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum PerfEntryType {
+    // This doesn't work... Need to figure this out
+    //Navigation = String::from("navigation"),
+}
 
 fn analytics_handling(req: HttpRequest) -> Result<fs::NamedFile> {
     println!("{:?}", req);
