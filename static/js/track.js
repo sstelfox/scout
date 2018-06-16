@@ -275,8 +275,9 @@ const queuePerformanceEntry = (entry) => {
  *
  *  Ideally this would be encoded in radix 64 without the CRC, but the
  *  additional server complexity and the additional code in this script would
- *  remove any network transfer benefits that may be gained, so radix 32 is
- *  used instead.
+ *  remove any network transfer benefits that may be gained. I could still use
+ *  radix 32 and may do so in the future, but I'm avoiding the complexity
+ *  involved for now.
  *
  *  This will be used for identifiers and should be more than enough to
  *  uniquely identify browsers and sessions. This uniqueness should be based on
@@ -292,10 +293,10 @@ const queuePerformanceEntry = (entry) => {
  *
  *  So I need 34 bit values to guarantee the random uniqueness I require.
  *
- *  @return string
+ *  @return number
  */
 const randomId = () => {
-  return Math.floor(Math.random() * Math.pow(2, 34)).toString(32);
+  return Math.floor(Math.random() * Math.pow(2, 34));
 }
 
 /**

@@ -48,10 +48,10 @@ struct AnalyticPerfEntry {
 #[derive(Debug, Serialize, Deserialize)]
 struct AnalyticRequest {
     #[serde(rename = "bid")]
-    browser_id: String,
+    browser_id: u64,
 
     #[serde(rename = "sid")]
-    session_id: String,
+    session_id: u64,
 
     #[serde(rename = "svc")]
     session_view_count: u64,
@@ -128,6 +128,7 @@ fn main() {
 
     let sys = actix::System::new("scout");
 
+    // TODO: Add security headers
     server::new(move || vec![
         App::new()
             .prefix("/t/1")
