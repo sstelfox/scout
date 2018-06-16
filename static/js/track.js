@@ -69,8 +69,8 @@ const config = {
   // Send queued data at most once every 60 seconds
   dataReportInterval: 60,
 
-  errorEndPoint: 'http://127.0.0.1:9292/api/v1/error',
-  trackingEndPoint: 'http://127.0.0.1:9292/api/v1/analytics',
+  errorEndPoint: 'http://127.0.0.1:9292/t/1/err',
+  trackingEndPoint: 'http://127.0.0.1:9292/t/1/ana',
 }
 
 const ANALYTIC_TYPE = {
