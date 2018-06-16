@@ -3,6 +3,7 @@ extern crate actix_web;
 extern crate dotenv;
 extern crate env_logger;
 extern crate serde_json;
+
 #[macro_use]
 extern crate serde_derive;
 
@@ -75,6 +76,8 @@ enum AnalyticType {
 #[derive(Debug, Serialize, Deserialize)]
 enum PerfEntryType {
     Navigation,
+    Paint,
+    Resource,
 }
 
 impl FromStr for PerfEntryType {
@@ -83,6 +86,8 @@ impl FromStr for PerfEntryType {
     fn from_str(s: &str) -> Result<PerfEntryType, ()> {
         match s {
             "performance" => Ok(PerfEntryType::Navigation),
+            "paint" => OK(PerfEntryType::Paint),
+            "resource" => Ok(PerfEntryType::Resource),
             _ => Err(()),
         }
     }
