@@ -14,6 +14,10 @@ use actix_web::{App, fs, HttpRequest, HttpResponse, middleware, pred, Result, se
 use dotenv::dotenv;
 use std::str::FromStr;
 
+/**
+ *  Data structures
+ */
+
 #[derive(Debug, Serialize, Deserialize)]
 struct AnalyticData {
     // This one is going to be tricky... I need to decode based on the 'type'
@@ -84,15 +88,47 @@ impl FromStr for PerfEntryType {
     }
 }
 
-fn analytics_handling(req: HttpRequest) -> &'static str {
-    // TODO Need the logic here
+/**
+ * Analytics app portion
+ */
+
+fn analytics_handling(req: HttpRequest) -> Result<HttpResponse> {
     println!("{:?}", req);
-    "{}"
+
+    // TODO: Need the logic here
+
+    // Always return a minimal valid JSON reseponse, the client will never be
+    // able to receive this anyway
+    Ok(HttpResponse::Ok().body("{}"))
 }
 
 fn error_report_handling(_req: HttpRequest) -> &'static str {
     "{}"
 }
+
+fn api_not_found(_req: HttpRequest) -> HttpResponse {
+    HttpResponse::NotFound().body("{}")
+}
+
+fn track_script(_req: HttpRequest) -> Result<fs::NamedFile> {
+    Ok(fs::NamedFile::open("static/js/track.js")?)
+}
+
+fn analytics_tracker_app() -> App {
+    return App::new()
+        .middleware(middleware::Logger::default())
+        .resource("/ana", |r| r.method(Method::POST).f(analytics_handling))
+        .resource("/err", |r| r.method(Method::POST).f(error_report_handling))
+        .resource("/t.js", |r| r.method(Method::GET).f(track_script))
+        .default_resource( |r| {
+            r.method(Method::GET).f(api_not_found);
+            r.route().filter(pred::Not(pred::Get())).f( |_req| HttpResponse::MethodNotAllowed());
+        });
+}
+
+/**
+ *  Frontend app portion
+ */
 
 fn favicon(_req: HttpRequest) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open("static/favicon.ico")?)
@@ -106,10 +142,6 @@ fn not_found(_req: HttpRequest) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND))
 }
 
-fn api_not_found(_req: HttpRequest) -> HttpResponse {
-    HttpResponse::NotFound().body("{}")
-}
-
 fn page_one(_req: HttpRequest) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open("static/page1.html")?)
 }
@@ -118,9 +150,22 @@ fn page_two(_req: HttpRequest) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open("static/page2.html")?)
 }
 
-fn track_script(_req: HttpRequest) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/js/track.js")?)
+fn frontend_app() -> App {
+    return App::new()
+        .middleware(middleware::Logger::default())
+        .resource("/", |r| r.method(Method::GET).f(index))
+        .resource("/favicon.ico", |r| r.method(Method::GET).f(favicon))
+        .resource("/page1.html", |r| r.method(Method::GET).f(page_one))
+        .resource("/page2.html", |r| r.method(Method::GET).f(page_two))
+        .default_resource( |r| {
+            r.method(Method::GET).f(not_found);
+            r.route().filter(pred::Not(pred::Get())).f( |_req| HttpResponse::MethodNotAllowed() );
+        });
 }
+
+/**
+ *  Pull it all together
+ */
 
 fn main() {
     dotenv().ok();
@@ -130,26 +175,8 @@ fn main() {
 
     // TODO: Add security headers
     server::new(move || vec![
-        App::new()
-            .prefix("/t/1")
-            .middleware(middleware::Logger::default())
-            .resource("/ana", |r| r.method(Method::POST).f(analytics_handling))
-            .resource("/err", |r| r.method(Method::POST).f(error_report_handling))
-            .default_resource( |r| {
-                r.method(Method::GET).f(api_not_found);
-                r.route().filter(pred::Not(pred::Get())).f( |_req| HttpResponse::MethodNotAllowed());
-            }),
-        App::new()
-            .middleware(middleware::Logger::default())
-            .resource("/", |r| r.method(Method::GET).f(index))
-            .resource("/favicon.ico", |r| r.method(Method::GET).f(favicon))
-            .resource("/page1.html", |r| r.method(Method::GET).f(page_one))
-            .resource("/page2.html", |r| r.method(Method::GET).f(page_two))
-            .resource("/js/track.js", |r| r.method(Method::GET).f(track_script))
-            .default_resource( |r| {
-                r.method(Method::GET).f(not_found);
-                r.route().filter(pred::Not(pred::Get())).f( |_req| HttpResponse::MethodNotAllowed() );
-            }),
+        analytics_tracker_app().prefix("/t/1"),
+        frontend_app(),
     ])
         .keep_alive(30)
         .bind("127.0.0.1:9292")
