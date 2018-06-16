@@ -59,15 +59,18 @@
  */
 
 const config = {
-  cookieBrowserIDName: 'bid',
+  cookieBrowserIDName: 'b',
   cookieBrowserExpiration: (60 * 60 * 24 * 10),
-  cookiePrefix: '_scout_',
-  cookieSessionIDName: 'sid',
+  cookiePrefix: '^s_',
+  cookieSessionIDName: 's',
   cookieSessionExpiration: (60 * 60 * 2),
   cookieTestName: 'chk',
 
-  // Send queued data at most once every 60 seconds
-  dataReportInterval: 60,
+  // Send queued data at most once every 30 seconds, this should allow the
+  // initial burst of collected data to be collected and sent in a single
+  // request. If I ever add additional interaction tracking, this will also
+  // limit those bursts.
+  dataReportInterval: 30,
 
   errorEndPoint: 'http://127.0.0.1:9292/t/1/err',
   trackingEndPoint: 'http://127.0.0.1:9292/t/1/ana',
@@ -268,14 +271,31 @@ const queuePerformanceEntry = (entry) => {
 };
 
 /**
- *  Generate a random value consisting of 8 lowercase alphanumeric characters.
+ *  Generate a random numeric value that will be used as a unique identifier.
+ *
+ *  Ideally this would be encoded in radix 64 without the CRC, but the
+ *  additional server complexity and the additional code in this script would
+ *  remove any network transfer benefits that may be gained, so radix 32 is
+ *  used instead.
+ *
  *  This will be used for identifiers and should be more than enough to
- *  uniquely identify browsers and sessions.
+ *  uniquely identify browsers and sessions. This uniqueness should be based on
+ *  the number of unique visitors a website is expected to have during the
+ *  duration of the cookieBrowserExpiration.
+ *
+ *  I roughly want the chance of a collision to be about the same as winning
+ *  the lottery (roughly 1 in 13.9 million) for my roughly 1000 unique visitors
+ *  every 10 days (duration of cookieBrowserExpiration), which requires the
+ *  estimation to be roughly 1 in 13.9 billion.
+ *
+ *  log(13,900,000,000) / log(2) = 33.694 bits
+ *
+ *  So I need 34 bit values to guarantee the random uniqueness I require.
  *
  *  @return string
  */
 const randomId = () => {
-  return Math.random().toString(36).slice(2, 10);
+  return Math.floor(Math.random() * Math.pow(2, 34)).toString(32);
 }
 
 /**
