@@ -84,9 +84,14 @@ impl FromStr for PerfEntryType {
     }
 }
 
-fn analytics_handling(req: HttpRequest) -> Result<fs::NamedFile> {
+fn analytics_handling(req: HttpRequest) -> &'static str {
+    // TODO Need the logic here
     println!("{:?}", req);
-    Ok(fs::NamedFile::open("static/fixed_api_response.json")?)
+    "{}"
+}
+
+fn error_report_handling(_req: HttpRequest) -> &'static str {
+    "{}"
 }
 
 fn favicon(_req: HttpRequest) -> Result<fs::NamedFile> {
@@ -101,9 +106,8 @@ fn not_found(_req: HttpRequest) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND))
 }
 
-fn api_not_found(_req: HttpRequest) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/fixed_api_not_found.json")?
-        .set_status_code(StatusCode::NOT_FOUND))
+fn api_not_found(_req: HttpRequest) -> HttpResponse {
+    HttpResponse::NotFound().body("{}")
 }
 
 fn page_one(_req: HttpRequest) -> Result<fs::NamedFile> {
@@ -126,14 +130,14 @@ fn main() {
 
     server::new(move || vec![
         App::new()
-            .prefix("/api/v1")
+            .prefix("/t/1")
             .middleware(middleware::Logger::default())
-            .resource("/analytics", |r| r.method(Method::POST).f(analytics_handling))
+            .resource("/ana", |r| r.method(Method::POST).f(analytics_handling))
+            .resource("/err", |r| r.method(Method::POST).f(error_report_handling))
             .default_resource( |r| {
                 r.method(Method::GET).f(api_not_found);
                 r.route().filter(pred::Not(pred::Get())).f( |_req| HttpResponse::MethodNotAllowed());
             }),
-        // No logger for the static routes for now...
         App::new()
             .middleware(middleware::Logger::default())
             .resource("/", |r| r.method(Method::GET).f(index))
