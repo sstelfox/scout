@@ -86,7 +86,7 @@ impl FromStr for PerfEntryType {
     fn from_str(s: &str) -> Result<PerfEntryType, ()> {
         match s {
             "performance" => Ok(PerfEntryType::Navigation),
-            "paint" => OK(PerfEntryType::Paint),
+            "paint" => Ok(PerfEntryType::Paint),
             "resource" => Ok(PerfEntryType::Resource),
             _ => Err(()),
         }
