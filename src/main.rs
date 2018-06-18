@@ -2,6 +2,7 @@ extern crate actix;
 extern crate actix_web;
 extern crate dotenv;
 extern crate env_logger;
+extern crate futures;
 extern crate serde_json;
 
 #[macro_use]
@@ -11,8 +12,9 @@ extern crate serde_derive;
 extern crate log;
 
 use actix_web::http::{Method, StatusCode};
-use actix_web::{App, fs, HttpRequest, HttpResponse, middleware, pred, Result, server};
+use actix_web::{App, Error, fs, HttpRequest, HttpResponse, middleware, pred, Result, server};
 use dotenv::dotenv;
+use futures::Future;
 use std::str::FromStr;
 
 /**
@@ -97,14 +99,20 @@ impl FromStr for PerfEntryType {
  * Analytics app portion
  */
 
-fn analytics_handling(req: HttpRequest) -> Result<HttpResponse> {
+fn analytics_handling(req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
     println!("{:?}", req);
 
     // TODO: Need the logic here
+    req.concat2()
+        .from_err()
+        .and_then(|body| {
+            println!("{:?}", body);
+            // Always return a minimal valid JSON reseponse, the client will never be
+            // able to receive this anyway
+            Ok(HttpResponse::Ok().body("{}"));
+        })
 
-    // Always return a minimal valid JSON reseponse, the client will never be
-    // able to receive this anyway
-    Ok(HttpResponse::Ok().body("{}"))
+
 }
 
 fn error_report_handling(_req: HttpRequest) -> &'static str {
@@ -122,7 +130,7 @@ fn track_script(_req: HttpRequest) -> Result<fs::NamedFile> {
 fn analytics_tracker_app() -> App {
     return App::new()
         .middleware(middleware::Logger::default())
-        .resource("/ana", |r| r.method(Method::POST).f(analytics_handling))
+        .resource("/ana", |r| r.method(Method::POST).with(analytics_handling))
         .resource("/err", |r| r.method(Method::POST).f(error_report_handling))
         .resource("/t.js", |r| r.method(Method::GET).f(track_script))
         .default_resource( |r| {
