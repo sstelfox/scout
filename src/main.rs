@@ -24,8 +24,8 @@ struct AnalyticData {
     // This one is going to be tricky... I need to decode based on the 'type'
     // field (which will be AnalyticType) then decode into its final data type
     // based on that.
-    #[serde(rename = "type")]
-    analytic_type: AnalyticType,
+    //#[serde(rename = "type")]
+    //analytic_type: AnalyticType,
 
     #[serde(rename = "ts")]
     timestamp: u64,
@@ -63,6 +63,7 @@ struct AnalyticRequest {
 
     #[serde(rename = "ts")]
     timestamp: u64,
+
     data: Vec<AnalyticData>,
 }
 
@@ -86,7 +87,7 @@ impl FromStr for PerfEntryType {
     fn from_str(s: &str) -> Result<PerfEntryType, ()> {
         match s {
             "performance" => Ok(PerfEntryType::Navigation),
-            "paint" => OK(PerfEntryType::Paint),
+            "paint" => Ok(PerfEntryType::Paint),
             "resource" => Ok(PerfEntryType::Resource),
             _ => Err(()),
         }
@@ -97,8 +98,9 @@ impl FromStr for PerfEntryType {
  * Analytics app portion
  */
 
-fn analytics_handling(req: HttpRequest) -> Result<HttpResponse> {
-    println!("{:?}", req);
+fn analytics_handling(body: String) -> Result<HttpResponse> {
+    let d: AnalyticRequest = serde_json::from_str(&body)?;
+    info!("{:?}", d);
 
     // TODO: Need the logic here
 
@@ -122,7 +124,7 @@ fn track_script(_req: HttpRequest) -> Result<fs::NamedFile> {
 fn analytics_tracker_app() -> App {
     return App::new()
         .middleware(middleware::Logger::default())
-        .resource("/ana", |r| r.method(Method::POST).f(analytics_handling))
+        .resource("/ana", |r| r.method(Method::POST).with(analytics_handling))
         .resource("/err", |r| r.method(Method::POST).f(error_report_handling))
         .resource("/t.js", |r| r.method(Method::GET).f(track_script))
         .default_resource( |r| {
