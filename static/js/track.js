@@ -61,7 +61,7 @@
 const config = {
   cookieBrowserIDName: 'b',
   cookieBrowserExpiration: (60 * 60 * 24 * 10),
-  cookiePrefix: '^s_',
+  cookiePrefix: '@s_',
   cookieSessionIDName: 's',
   cookieSessionExpiration: (60 * 60 * 2),
   cookieTestName: 'chk',
@@ -84,6 +84,8 @@ const ANALYTIC_TYPE = {
 
 // Collected information that determines runtime behavior including identities
 let runtimeInfo = {
+  // TODO: Looks like the clock has to be recreated each time or it will
+  // continue to reuse the same timestamp
   clock: null,
 
   cookiesSupported: null,
