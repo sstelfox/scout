@@ -68,6 +68,12 @@ struct AnalyticRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct ErrorReport {
+    msg: String,
+    stack: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 enum PerfEntryType {
     Navigation,
     Paint,
@@ -100,14 +106,20 @@ fn analytics_handling(body: String) -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().body("{}"))
 }
 
-fn error_report_handling(_req: HttpRequest) -> &'static str {
-    "{}"
+fn error_report_handling(body: String) -> Result<HttpResponse> {
+    let d: ErrorReport = serde_json::from_str(&body)?;
+    info!("{:?}", d);
+
+    // Always return a minimal valid JSON reseponse, the client will never be
+    // able to receive this anyway
+    Ok(HttpResponse::Ok().body("{}"))
 }
 
 fn api_not_found(_req: HttpRequest) -> HttpResponse {
     HttpResponse::NotFound().body("{}")
 }
 
+// Maybe check / set cookie here?
 fn track_script(_req: HttpRequest) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open("static/js/track.js")?)
 }
@@ -116,7 +128,7 @@ fn analytics_tracker_app() -> App {
     return App::new()
         .middleware(middleware::Logger::default())
         .resource("/ana", |r| r.method(Method::POST).with(analytics_handling))
-        .resource("/err", |r| r.method(Method::POST).f(error_report_handling))
+        .resource("/err", |r| r.method(Method::POST).with(error_report_handling))
         .resource("/t.js", |r| r.method(Method::GET).f(track_script))
         .default_resource( |r| {
             r.method(Method::GET).f(api_not_found);
