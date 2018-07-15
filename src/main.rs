@@ -50,8 +50,6 @@ enum AnalyticData {
     },
 }
 
-// Type 0 - VIEW_START
-
 // Type 1 - VIEW_END
 //
 // no additional fields, timestamp can be used to close the session
@@ -116,8 +114,6 @@ impl FromStr for PerfEntryType {
 fn analytics_handling(body: String) -> Result<HttpResponse> {
     let d: AnalyticRequest = serde_json::from_str(&body)?;
     info!("{:?}", d);
-
-    // TODO: Need the logic here
 
     // Always return a minimal valid JSON reseponse, the client will never be
     // able to receive this anyway
