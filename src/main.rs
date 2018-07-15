@@ -50,19 +50,6 @@ enum AnalyticData {
     },
 }
 
-// Type 1 - VIEW_END
-//
-// no additional fields, timestamp can be used to close the session
-
-// Type 2 - VIEW_PERFORMANCE
-// perf_entry: AnalyticPerfEntry,
-
-#[derive(Debug, Serialize, Deserialize)]
-struct AnalyticPerfEntry {
-    entry_type: PerfEntryType,
-    // This is going to need a lot more fleshing out...
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 struct AnalyticRequest {
     #[serde(rename = "bid")]
@@ -78,13 +65,6 @@ struct AnalyticRequest {
     timestamp: usize,
 
     data: Vec<AnalyticData>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-enum AnalyticType {
-    ViewStart = 0,
-    ViewEnd = 1,
-    ViewPerformance = 2,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
