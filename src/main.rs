@@ -20,29 +20,44 @@ use std::str::FromStr;
  */
 
 #[derive(Debug, Serialize, Deserialize)]
-struct AnalyticData {
-    // This one is going to be tricky... I need to decode based on the 'type'
-    // field (which will be AnalyticType) then decode into its final data type
-    // based on that.
-    //#[serde(rename = "type")]
-    //analytic_type: AnalyticType,
+#[serde(tag = "type")]
+enum AnalyticData {
+    #[serde(rename = "start")]
+    RequestStart {
+        #[serde(rename = "ts")]
+        timestamp: usize,
 
-    #[serde(rename = "ts")]
-    timestamp: u64,
+        #[serde(rename = "bfs")]
+        browser_first_seen: usize,
 
-    // Type 0 - VIEW_START
-    // browser_first_seen: u64,
-    // session_first_seen: u64,
-    // title: String,
-    // url: String,
+        #[serde(rename = "sfs")]
+        session_first_seen: usize,
 
-    // Type 1 - VIEW_END
-    //
-    // no additional fields, timestamp can be used to close the session
+        title: String,
+        url: String,
+    },
 
-    // Type 2 - VIEW_PERFORMANCE
-    // perf_entry: AnalyticPerfEntry,
+    #[serde(rename = "end")]
+    RequestEnd {
+        #[serde(rename = "ts")]
+        timestamp: usize,
+    },
+
+    #[serde(rename = "performance")]
+    Performance {
+        #[serde(rename = "ts")]
+        timestamp: usize,
+    },
 }
+
+// Type 0 - VIEW_START
+
+// Type 1 - VIEW_END
+//
+// no additional fields, timestamp can be used to close the session
+
+// Type 2 - VIEW_PERFORMANCE
+// perf_entry: AnalyticPerfEntry,
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AnalyticPerfEntry {
@@ -53,16 +68,16 @@ struct AnalyticPerfEntry {
 #[derive(Debug, Serialize, Deserialize)]
 struct AnalyticRequest {
     #[serde(rename = "bid")]
-    browser_id: u64,
+    browser_id: usize,
 
     #[serde(rename = "sid")]
-    session_id: u64,
+    session_id: usize,
 
     #[serde(rename = "svc")]
-    session_view_count: u64,
+    session_view_count: usize,
 
     #[serde(rename = "ts")]
-    timestamp: u64,
+    timestamp: usize,
 
     data: Vec<AnalyticData>,
 }
