@@ -77,17 +77,13 @@ const config = {
 }
 
 const ANALYTIC_TYPE = {
-  VIEW_START: 0,
-  VIEW_END: 1,
-  VIEW_PERFORMANCE: 2,
+  VIEW_START: 'start',
+  VIEW_END: 'end',
+  VIEW_PERFORMANCE: 'performance',
 }
 
 // Collected information that determines runtime behavior including identities
 let runtimeInfo = {
-  // TODO: Looks like the clock has to be recreated each time or it will
-  // continue to reuse the same timestamp
-  clock: null,
-
   cookiesSupported: null,
   dntDetected: null,
   useSecureCookie: null,
@@ -129,7 +125,6 @@ const deleteCookie = (name) => {
  *  features and configuration required for the tracker.
  */
 const detectRuntimeConfig = () => {
-  runtimeInfo.clock = new Date();
 
   // TODO: Re-enable this once we're done, I don't want to muck with my DNT
   // browser settings just for testing.
@@ -204,6 +199,8 @@ const immediateBeaconSend = () => {
   // We don't have any data to send
   if (runtimeInfo.dataQueue.length === 0) { return; }
 
+  const clock = new Date();
+
   /**
    * While the cookie does include this information there are two problems with
    * relying on it. The first is that the analytics server isn't guaranteed to
@@ -223,7 +220,7 @@ const immediateBeaconSend = () => {
     svc: runtimeInfo.sessionViewCount,
 
     data: runtimeInfo.dataQueue,
-    ts: runtimeInfo.clock.getTime(),
+    ts: clock.getTime(),
   }
   runtimeInfo.dataQueue = [];
 
@@ -265,8 +262,10 @@ const queuePerformanceEntry = (entry) => {
     return;
   }
 
+  const clock = new Date();
+
   queueData({
-    ts: runtimeInfo.clock.getTime(),
+    ts: clock.getTime(),
     type: ANALYTIC_TYPE.VIEW_PERFORMANCE,
     perfEntry: perfEntry,
   });
@@ -344,6 +343,8 @@ const reportEdgeCase = (caseName) => {
  * happened.
  */
 const reportPageView = () => {
+  const clock = new Date();
+
   runtimeInfo.dataQueue.push({
     bfs: runtimeInfo.browserFirstSeen,
     sfs: runtimeInfo.sessionFirstSeen,
@@ -351,7 +352,7 @@ const reportPageView = () => {
     title: document.title,
     url: (location.protocol + '//' + location.host + location.pathname),
 
-    ts: runtimeInfo.clock.getTime(),
+    ts: clock.getTime(),
     type: ANALYTIC_TYPE.VIEW_START,
   });
 
@@ -391,8 +392,10 @@ const setupBrowserIdentity = () => {
   // DNT enabled clients will return null here
   let bidCookieContents = getCookie(config.cookieBrowserIDName);
 
+  const clock = new Date();
+
   if (bidCookieContents === null) {
-    runtimeInfo.browserFirstSeen = runtimeInfo.clock.getTime();
+    runtimeInfo.browserFirstSeen = clock.getTime();
     runtimeInfo.browserID = (runtimeInfo.dntDetected ? 'dnt' : randomId());
   } else {
     let parsedCookie = null;
@@ -432,8 +435,10 @@ const setupSessionIdentity = () => {
   // DNT enabled clients will return null here
   let sidCookieContents = getCookie(config.cookieSessionIDName);
 
+  const clock = new Date();
+
   if (sidCookieContents === null) {
-    runtimeInfo.sessionFirstSeen = runtimeInfo.clock.getTime();
+    runtimeInfo.sessionFirstSeen = clock.getTime();
     runtimeInfo.sessionID = (runtimeInfo.dntDetected ? 'dnt' : randomId());
     runtimeInfo.sessionViewCount = 0;
   } else {
@@ -499,8 +504,10 @@ const testCookieSupport = () => {
  *  view was complete and send that along with any other queued messages.
  */
 const unloadHandler = () => {
+  const clock = new Date();
+
   runtimeInfo.dataQueue.push({
-    ts: runtimeInfo.clock.getTime(),
+    ts: clock.getTime(),
     type: ANALYTIC_TYPE.VIEW_END,
   });
 
