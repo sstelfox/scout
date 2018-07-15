@@ -13,7 +13,6 @@ extern crate log;
 use actix_web::http::{Method, StatusCode};
 use actix_web::{App, fs, HttpRequest, HttpResponse, middleware, pred, Result, server};
 use dotenv::dotenv;
-use std::str::FromStr;
 
 /**
  *  Data structures
@@ -47,6 +46,9 @@ enum AnalyticData {
     Performance {
         #[serde(rename = "ts")]
         timestamp: usize,
+
+        #[serde(rename = "perfEntry")]
+        entry: PerfEntry,
     },
 }
 
@@ -74,23 +76,33 @@ struct ErrorReport {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-enum PerfEntryType {
-    Navigation,
-    Paint,
-    Resource,
-}
+#[serde(tag = "entryType")]
+enum PerfEntry {
+    #[serde(rename = "navigate")]
+    Navigate {
+    },
 
-impl FromStr for PerfEntryType {
-    type Err = ();
+    #[serde(rename = "navigation")]
+    Navigation {
+        name: String,
+    },
 
-    fn from_str(s: &str) -> Result<PerfEntryType, ()> {
-        match s {
-            "performance" => Ok(PerfEntryType::Navigation),
-            "paint" => Ok(PerfEntryType::Paint),
-            "resource" => Ok(PerfEntryType::Resource),
-            _ => Err(()),
-        }
-    }
+    #[serde(rename = "paint")]
+    Paint {
+        duration: f64,
+        name: String,
+
+        #[serde(rename = "startTime")]
+        start_time: f64,
+    },
+
+    #[serde(rename = "reload")]
+    Reload {
+    },
+
+    #[serde(rename = "resource")]
+    Resource {
+    },
 }
 
 /**
@@ -98,6 +110,8 @@ impl FromStr for PerfEntryType {
  */
 
 fn analytics_handling(body: String) -> Result<HttpResponse> {
+    info!("{}", body);
+
     let d: AnalyticRequest = serde_json::from_str(&body)?;
     info!("{:?}", d);
 
