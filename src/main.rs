@@ -15,6 +15,7 @@ use dotenv::dotenv;
 use actix_web::{server, App, HttpResponse, HttpRequest, Responder};
 use actix_web::fs::NamedFile;
 use actix_web::http::Method;
+use actix_web::middleware::Logger;
 
 /**
  *  Data structures
@@ -125,6 +126,10 @@ fn error_report_handling(body: String) -> impl Responder {
     HttpResponse::Ok().body("{}")
 }
 
+fn shared_worker_script(_req: &HttpRequest) -> impl Responder {
+    NamedFile::open("static/js/worker.js")
+}
+
 fn tracking_script(_req: &HttpRequest) -> impl Responder {
     NamedFile::open("static/js/track.js")
 }
@@ -138,7 +143,9 @@ fn main() {
     // TODO: Add security headers
     server::new(|| {
         App::new()
+            .middleware(Logger::default())
             .resource("/t/1/t.js", |r| r.method(Method::GET).f(tracking_script))
+            .resource("/t/1/w.js", |r| r.method(Method::GET).f(shared_worker_script))
             .resource("/t/1/ana", |r| r.method(Method::POST).with(analytics_handling))
             .resource("/t/1/err", |r| r.method(Method::POST).with(error_report_handling))
     })
