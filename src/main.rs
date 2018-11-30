@@ -2,6 +2,7 @@ extern crate actix;
 extern crate actix_web;
 extern crate dotenv;
 extern crate env_logger;
+extern crate mime;
 extern crate serde_json;
 
 #[macro_use]
@@ -13,8 +14,9 @@ extern crate log;
 use dotenv::dotenv;
 
 use actix_web::{server, App, HttpResponse, HttpRequest, Responder};
-use actix_web::fs::NamedFile;
+use actix_web::fs::{NamedFile, StaticFileConfig};
 use actix_web::http::Method;
+use actix_web::http::header::DispositionType;
 use actix_web::middleware::Logger;
 
 /**
@@ -108,6 +110,15 @@ enum PerfEntry {
     },
 }
 
+#[derive(Default)]
+struct FixedInlineFileConfig;
+
+impl StaticFileConfig for FixedInlineFileConfig {
+    fn content_disposition_map(_type: mime::Name) -> DispositionType {
+        DispositionType::Inline
+    }
+}
+
 fn analytics_handling(body: String) -> impl Responder {
     let d: AnalyticRequest = serde_json::from_str(&body).unwrap();
     info!("{:?}", d);
@@ -127,11 +138,11 @@ fn error_report_handling(body: String) -> impl Responder {
 }
 
 fn shared_worker_script(_req: &HttpRequest) -> impl Responder {
-    NamedFile::open("static/js/worker.js")
+    NamedFile::open_with_config("static/js/worker.js", FixedInlineFileConfig)
 }
 
 fn tracking_script(_req: &HttpRequest) -> impl Responder {
-    NamedFile::open("static/js/track.js")
+    NamedFile::open_with_config("static/js/track.js", FixedInlineFileConfig)
 }
 
 fn main() {
