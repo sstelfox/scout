@@ -4,16 +4,14 @@ version = "0.1.0"
 authors = ["Sam Stelfox <sstelfox@bedroomprogrammers.net>"]
 
 [dependencies]
-actix = "^0.5"
-actix-web = { version = "^0.6", default-features = false }
+gotham = "0.3"
+hyper = "0.12"
+mime = "0.3.13"
 
-dotenv = "^0.12"
+dotenv = { version = "^0.13", default-features = false }
 env_logger = "^0.5"
-futures = "^0.2"
 log = "^0.4"
 
 serde = "^1.0"
 serde_derive = "^1.0"
 serde_json = "^1.0"
-
-diesel = { version = "^1.3", features = ["postgres"] }

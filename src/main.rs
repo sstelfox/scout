@@ -1,22 +1,22 @@
-extern crate actix;
-extern crate actix_web;
 extern crate dotenv;
 extern crate env_logger;
+extern crate gotham;
+extern crate hyper;
+extern crate log;
+extern crate mime;
 extern crate serde_json;
 
 #[macro_use]
 extern crate serde_derive;
 
-#[macro_use]
-extern crate log;
-
-use actix_web::http::{Method, StatusCode};
-use actix_web::{App, fs, HttpRequest, HttpResponse, middleware, pred, Result, server};
 use dotenv::dotenv;
+use gotham::middleware::logger::RequestLogger;
+use gotham::pipeline::new_pipeline;
+use gotham::pipeline::single::single_pipeline;
+use gotham::router::Router;
+use gotham::router::builder::*;
 
-/**
- *  Data structures
- */
+use log::Level;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -105,109 +105,74 @@ enum PerfEntry {
     },
 }
 
-/**
- * Analytics app portion
- */
+mod fixed_responses {
+    use gotham::helpers::http::response::create_response;
+    use gotham::state::State;
+    use hyper::{Body, Response, StatusCode};
 
-fn analytics_handling(body: String) -> Result<HttpResponse> {
-    info!("{}", body);
-
-    let d: AnalyticRequest = serde_json::from_str(&body)?;
-    info!("{:?}", d);
-
-    // Always return a minimal valid JSON reseponse, the client will never be
-    // able to receive this anyway
-    Ok(HttpResponse::Ok().body("{}"))
+    pub fn home_page(state: State) -> (State, Response<Body>) {
+        let response = create_response(&state, StatusCode::OK, mime::TEXT_PLAIN, "Nothing to see here...\n");
+        (state, response)
+    }
 }
 
-fn error_report_handling(body: String) -> Result<HttpResponse> {
-    let d: ErrorReport = serde_json::from_str(&body)?;
-    info!("{:?}", d);
+mod stats {
+    use gotham::helpers::http::response::create_empty_response;
+    use gotham::state::State;
+    use hyper::{Body, Response, StatusCode};
 
-    // Always return a minimal valid JSON reseponse, the client will never be
-    // able to receive this anyway
-    Ok(HttpResponse::Ok().body("{}"))
+    pub fn error(state: State) -> (State, Response<Body>) {
+        let response = create_empty_response(&state, StatusCode::OK);
+        (state, response)
+    }
+
+    pub fn record(state: State) -> (State, Response<Body>) {
+        let response = create_empty_response(&state, StatusCode::OK);
+        (state, response)
+    }
 }
 
-fn api_not_found(_req: HttpRequest) -> HttpResponse {
-    HttpResponse::NotFound().body("{}")
+fn router() -> Router {
+    let (chain, pipelines) = single_pipeline(
+        new_pipeline()
+            .add(RequestLogger::new(Level::Info))
+            .build()
+    );
+
+    build_router(chain, pipelines, |route| {
+        route.get("/").to(fixed_responses::home_page);
+
+        route.post("/api/v1/error_report").to(stats::error);
+        route.post("/api/v1/stats").to(stats::record);
+    })
 }
 
-// Maybe check / set cookie here?
-fn track_script(_req: HttpRequest) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/js/track.js")?)
-}
-
-fn analytics_tracker_app() -> App {
-    return App::new()
-        .middleware(middleware::Logger::default())
-        .resource("/ana", |r| r.method(Method::POST).with(analytics_handling))
-        .resource("/err", |r| r.method(Method::POST).with(error_report_handling))
-        .resource("/t.js", |r| r.method(Method::GET).f(track_script))
-        .default_resource( |r| {
-            r.method(Method::GET).f(api_not_found);
-            r.route().filter(pred::Not(pred::Get())).f( |_req| HttpResponse::MethodNotAllowed());
-        });
-}
-
-/**
- *  Frontend app portion
- */
-
-fn favicon(_req: HttpRequest) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/favicon.ico")?)
-}
-
-fn index(_req: HttpRequest) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/index.html")?)
-}
-
-fn not_found(_req: HttpRequest) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND))
-}
-
-fn page_one(_req: HttpRequest) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/page1.html")?)
-}
-
-fn page_two(_req: HttpRequest) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/page2.html")?)
-}
-
-fn frontend_app() -> App {
-    return App::new()
-        .middleware(middleware::Logger::default())
-        .resource("/", |r| r.method(Method::GET).f(index))
-        .resource("/favicon.ico", |r| r.method(Method::GET).f(favicon))
-        .resource("/page1.html", |r| r.method(Method::GET).f(page_one))
-        .resource("/page2.html", |r| r.method(Method::GET).f(page_two))
-        .default_resource( |r| {
-            r.method(Method::GET).f(not_found);
-            r.route().filter(pred::Not(pred::Get())).f( |_req| HttpResponse::MethodNotAllowed() );
-        });
-}
-
-/**
- *  Pull it all together
- */
-
-fn main() {
+pub fn main() {
     dotenv().ok();
     env_logger::init();
 
-    let sys = actix::System::new("scout");
+    let bind_address = match std::env::var("SCOUT_ADDR") {
+        Ok(val) => val,
+        Err(_) => String::from("[::1]:3000"),
+    };
 
-    // TODO: Add security headers
-    server::new(move || vec![
-        analytics_tracker_app().prefix("/t/1"),
-        frontend_app(),
-    ])
-        .keep_alive(30)
-        .bind("127.0.0.1:9292")
-        .expect("Unable to bind to 127.0.0.1:9292")
-        .start();
+    gotham::start(bind_address, router())
+}
 
-    info!("Started HTTP server: 127.0.0.1:9292");
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gotham::test::TestServer;
+    use hyper::StatusCode;
 
-    let _ = sys.run();
+    #[test]
+    fn check_basic_response() {
+        let test_server = TestServer::new(router()).unwrap();
+
+        let response = test_server.client().get("http://[::1]/").perform().unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.read_body().unwrap();
+        assert_eq!(&body[..], b"Nothing to see here...\n");
+    }
 }
