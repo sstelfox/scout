@@ -41,15 +41,6 @@ enum AnalyticData {
         #[serde(rename = "ts")]
         timestamp: usize,
     },
-
-    #[serde(rename = "performance")]
-    Performance {
-        #[serde(rename = "ts")]
-        timestamp: usize,
-
-        #[serde(rename = "perfEntry")]
-        entry: PerfEntry,
-    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,36 +64,6 @@ struct AnalyticRequest {
 struct ErrorReport {
     msg: String,
     stack: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "entryType")]
-enum PerfEntry {
-    #[serde(rename = "navigate")]
-    Navigate {
-    },
-
-    #[serde(rename = "navigation")]
-    Navigation {
-        name: String,
-    },
-
-    #[serde(rename = "paint")]
-    Paint {
-        duration: f64,
-        name: String,
-
-        #[serde(rename = "startTime")]
-        start_time: f64,
-    },
-
-    #[serde(rename = "reload")]
-    Reload {
-    },
-
-    #[serde(rename = "resource")]
-    Resource {
-    },
 }
 
 mod fixed_responses {
@@ -153,7 +114,7 @@ pub fn main() {
 
     let bind_address = match std::env::var("SCOUT_ADDR") {
         Ok(val) => val,
-        Err(_) => String::from("[::1]:3000"),
+        Err(_) => String::from("[::1]:9292"),
     };
 
     gotham::start(bind_address, router())
@@ -167,12 +128,12 @@ mod tests {
 
     #[test]
     fn check_basic_response() {
-        let test_server = TestServer::new(router()).unwrap();
+        let test_server = TestServer::new(router()).expect("setup test server");
 
-        let response = test_server.client().get("http://[::1]/").perform().unwrap();
+        let response = test_server.client().get("http://[::1]/").perform().expect("connect to test server");
         assert_eq!(response.status(), StatusCode::OK);
 
-        let body = response.read_body().unwrap();
+        let body = response.read_body().expect("read test server response");
         assert_eq!(&body[..], b"Nothing to see here...\n");
     }
 }

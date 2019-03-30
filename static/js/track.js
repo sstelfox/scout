@@ -72,14 +72,13 @@ const config = {
   // limit those bursts.
   dataReportInterval: 30,
 
-  errorEndPoint: 'http://127.0.0.1:9292/t/1/err',
-  trackingEndPoint: 'http://127.0.0.1:9292/t/1/ana',
+  errorEndPoint: 'http://127.0.0.1:9292/api/v1/error_report',
+  statEndPoint: 'http://127.0.0.1:9292/api/v1/stats',
 }
 
 const ANALYTIC_TYPE = {
   VIEW_START: 'start',
   VIEW_END: 'end',
-  VIEW_PERFORMANCE: 'performance',
 }
 
 // Collected information that determines runtime behavior including identities
@@ -230,7 +229,7 @@ const immediateBeaconSend = () => {
   }
 
   console.log(dataPkt);
-  navigator.sendBeacon(config.trackingEndPoint, JSON.stringify(dataPkt));
+  navigator.sendBeacon(config.statEndPoint, JSON.stringify(dataPkt));
 }
 
 /**
@@ -244,32 +243,6 @@ const queueData = (data) => {
     runtimeInfo.queueTimer = setInterval(immediateBeaconSend, config.dataReportInterval * 1000);
   }
 }
-
-/**
- * When a performance entry comes in this parses the object adjusts it for
- * consumption by the server and queued it for transport.
- */
-const queuePerformanceEntry = (entry) => {
-  // I hate the weird performance API objects, they're inconsistent and can't
-  // be modified or dealt with simply. This just ditches the object.
-  const perfEntry = JSON.parse(JSON.stringify(entry));
-
-  // Don't record performance metrics on the analytics endpoints. Without this
-  // we'll receive an analytics request every interval only reporting the
-  // performance of the analytics endpoint.
-  if (perfEntry.entryType === 'resource' &&
-        (perfEntry.name === config.errorEndPoint || perfEntry.name == config.trackingEndPoint)) {
-    return;
-  }
-
-  const clock = new Date();
-
-  queueData({
-    ts: clock.getTime(),
-    type: ANALYTIC_TYPE.VIEW_PERFORMANCE,
-    perfEntry: perfEntry,
-  });
-};
 
 /**
  *  Generate a random numeric value that will be used as a unique identifier.
@@ -299,24 +272,6 @@ const queuePerformanceEntry = (entry) => {
 const randomId = () => {
   return Math.floor(Math.random() * Math.pow(2, 34));
 }
-
-/**
- * Start collecting performance entries about resource loading and paints. The
- * data will be queued up and sent in batches.
- */
-const recordPerformanceMetrics = () => {
-  const observer = new window.PerformanceObserver(list => {
-    list.getEntries().forEach((entry) => { queuePerformanceEntry(entry); });
-  });
-
-  observer.observe({
-    entryTypes: ['frame', 'mark', 'measure', 'navigation', 'paint', 'resource']
-  });
-
-  Array.from(performance.getEntries()).forEach((entry) => {
-    queuePerformanceEntry(entry);
-  });
-};
 
 /**
  * Bind our unload handler to the global page unload handler so we can let our
@@ -563,7 +518,6 @@ try {
   setupSessionIdentity();
   reportPageView();
   registerUnloadHandler();
-  recordPerformanceMetrics();
 } catch(error) {
   errorHandler(error);
 }
