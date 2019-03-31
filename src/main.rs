@@ -71,8 +71,15 @@ mod fixed_responses {
     use gotham::state::State;
     use hyper::{Body, Response, StatusCode};
 
+    const MINIMAL_PIXEL : &[u8] = b"\x89PNG\x0d\x0a\x1a\x0a\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0aIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\x0d\x0a-\xb4\x00\x00\x00\x00IEND\xaeB`\x82";
+
     pub fn home_page(state: State) -> (State, Response<Body>) {
         let response = create_response(&state, StatusCode::OK, mime::TEXT_PLAIN, "Nothing to see here...\n");
+        (state, response)
+    }
+
+    pub fn pixel(state: State) -> (State, Response<Body>) {
+        let response = create_response(&state, StatusCode::OK, mime::IMAGE_PNG, MINIMAL_PIXEL);
         (state, response)
     }
 }
@@ -102,6 +109,7 @@ fn router() -> Router {
 
     build_router(chain, pipelines, |route| {
         route.get("/").to(fixed_responses::home_page);
+        route.get("/pixel.png").to(fixed_responses::pixel);
 
         route.post("/api/v1/error_report").to(stats::error);
         route.post("/api/v1/stats").to(stats::record);
