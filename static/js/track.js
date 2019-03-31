@@ -359,7 +359,7 @@ const setupBrowserIdentity = () => {
       parsedCookie = JSON.parse(bidCookieContents);
     } catch(error) {
       // If the contents are invalid, report the error, clear out the bad
-      // cookie and all this function again.
+      // cookie and setup from scratch
       errorHandler(error);
 
       deleteCookie(cookieBrowserIDName);
@@ -387,11 +387,9 @@ const setupBrowserIdentity = () => {
  * one. In the event DNT is enabled this will be the special 'dnt' identifier.
  */
 const setupSessionIdentity = () => {
-  // DNT enabled clients will return null here
-  let sidCookieContents = getCookie(config.cookieSessionIDName);
-
-  const clock = new Date();
-
+  // DNT enabled clients will return null here, we will still collect a page
+  // view happened but won't associate it with anything about the user or
+  // browser besides that it was a DnT request.
   if (sidCookieContents === null) {
     runtimeInfo.sessionFirstSeen = clock.getTime();
     runtimeInfo.sessionID = (runtimeInfo.dntDetected ? 'dnt' : randomId());
@@ -403,7 +401,7 @@ const setupSessionIdentity = () => {
       parsedCookie = JSON.parse(sidCookieContents);
     } catch(error) {
       // If the contents are invalid, report the error, clear out the bad
-      // cookie and all this function again.
+      // cookie and call this function again to initialize the cookie.
       errorHandler(error);
 
       deleteCookie(cookieSessionIDName);
