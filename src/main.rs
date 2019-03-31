@@ -79,7 +79,13 @@ mod fixed_responses {
     }
 
     pub fn pixel(state: State) -> (State, Response<Body>) {
-        let response = create_response(&state, StatusCode::OK, mime::IMAGE_PNG, MINIMAL_PIXEL);
+        let mut response = create_response(&state, StatusCode::OK, mime::IMAGE_PNG, MINIMAL_PIXEL);
+
+        {
+            let headers = response.headers_mut();
+            headers.insert("Cache-Control", "no-store".parse().unwrap());
+        };
+
         (state, response)
     }
 }
